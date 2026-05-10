@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.~lock*
+
+*/.ipynb_checkpoints
+
+.vscode
+
+# Sensitive keys
+experiments/classification_new_data/data/ee-key.json
+
+# Generated outputs (re-run notebooks to reproduce)
+experiments/classification_new_data/output/
