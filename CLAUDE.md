@@ -203,3 +203,45 @@ quantile_svr_HP_tuning
 - **cuDNN not found**: prefix command with `LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` or source `~/.bashrc`.
 - **`quantile_svr_HP_tuning.ipynb`**: uses `DATA_PATH` from `constants` — do not revert to relative paths.
 - **`pi_estimation_uncensored.ipynb`**: had hardcoded output path — fixed, watch for regressions.
+
+## ⚠️ OPEN ISSUES — Resume After Restart
+
+### 1. cuDNN version mismatch (BLOCKING — all GPU/ANN notebooks fail)
+
+**Error**: `Loaded runtime CuDNN library: 9.0.0 but source was compiled with: 9.3.0`  
+**Cause**: TF 2.21 was compiled against cuDNN 9.3.0; system has 9.0.0 only.  
+**Fix needed** (choose one after restart):
+- **Option A — Downgrade TF**: change `pyproject.toml` to `tensorflow==2.18.0` (compiled against cuDNN 9.0) and run `/snap/bin/astral-uv.uv sync`
+- **Option B — Upgrade cuDNN**: install cuDNN 9.3 from NVIDIA's repo (requires adding nvidia apt source)
+- **Option C — Force CPU for ANN**: set `CUDA_VISIBLE_DEVICES=""` in run_notebook() env for GPU-only notebooks (loses GPU speed)
+
+After fix, re-run pipeline from `ann_censored`:
+```bash
+LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
+/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/run_pipeline.py \
+--from ann_censored
+```
+
+### 2. MAPIE `alpha_name` ValueError (conformal_regression notebooks 11–12)
+
+**Error**: `ValueError: The matching parameter 'alpha_name' for estimator does not...`  
+**Cause**: MAPIE API changed — `alpha_name` parameter renamed or removed in newer MAPIE version.  
+**Fix needed**: Check `conformal_regression_censored.ipynb` and `conformal_regression_uncensored.ipynb` — find where `alpha_name` is passed and update to current MAPIE API.
+
+### Current output state (after last run)
+
+Notebooks **1–6 have results** (classification + classical ML):
+- `output/classification_censored/` ✓ metrics_EOS-04.json, metrics_Sentinel-1.json
+- `output/classification_uncensored/` ✓
+- `output/ml_experiment_censored/` ✓
+- `output/ml_experiment_uncensored/` ✓
+
+Notebooks **7–15 have NO results** (all failed with cuDNN error or MAPIE error).
+
+### Pipeline fixes already applied (do NOT revert)
+
+- `run_pipeline.py`: non-interactive stdin auto-continue (`sys.stdin.isatty()` check)
+- `model_experiments.py`: `try/except RuntimeError` around `set_memory_growth` (handles TF pre-initialized by notebook)
+- `model_experiments.py`: `os.makedirs(self.results_path, exist_ok=True)` in all `__init__` methods
+- `model_experiments.py`: `fit_grid_search` yellowbrick removed; only `make_plot` called
+- `model_experiments.py`: CQR finite-sample correction `(1-α)(1+1/n)` quantile

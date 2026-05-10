@@ -234,8 +234,21 @@ def run_notebook(state: NotebookState, env: dict) -> bool:
     return proc.returncode == 0
 
 
+def _build_ld_library_path() -> str:
+    """Prepend venv NVIDIA cuDNN/cuBLAS wheel paths so TF 2.21 finds cuDNN 9.3."""
+    import site
+    venv_sp = Path(site.getsitepackages()[0])
+    nvidia_lib_dirs = [
+        str(venv_sp / "nvidia" / "cudnn" / "lib"),
+        str(venv_sp / "nvidia" / "cublas" / "lib"),
+    ]
+    existing = os.environ.get("LD_LIBRARY_PATH", "")
+    parts = nvidia_lib_dirs + ["/usr/lib/x86_64-linux-gnu"] + ([existing] if existing else [])
+    return ":".join(p for p in parts if p)
+
+
 def run_pipeline(skip_names: list[str], start_from: Optional[str], export_after: bool):
-    env = {**os.environ, "LD_LIBRARY_PATH": f"/usr/lib/x86_64-linux-gnu:{os.environ.get('LD_LIBRARY_PATH', '')}"}
+    env = {**os.environ, "LD_LIBRARY_PATH": _build_ld_library_path()}
 
     states = [NotebookState(name, prereqs) for name, prereqs in NOTEBOOKS]
 
@@ -306,11 +319,16 @@ def run_pipeline(skip_names: list[str], start_from: Optional[str], export_after:
                 live.stop()
                 console.print(f"\n[bold red]✗ FAILED:[/] {s.name}")
                 console.print(f"[dim]{s.error_tail}[/]")
-                try:
-                    console.print("\n[yellow]Continue with next notebook? [Y/n][/] ", end="")
-                    ans = input().strip().lower()
-                except (EOFError, KeyboardInterrupt):
+                import sys as _sys
+                if _sys.stdin.isatty():
+                    try:
+                        console.print("\n[yellow]Continue with next notebook? [Y/n][/] ", end="")
+                        ans = input().strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        ans = "y"
+                else:
                     ans = "y"
+                    console.print("\n[yellow]Non-interactive mode — continuing automatically.[/]")
                 if ans == "n":
                     break
                 live.start()
@@ -392,7 +410,7 @@ def main():
     args = parser.parse_args()
 
     if args.export_only:
-        env = {**os.environ, "LD_LIBRARY_PATH": f"/usr/lib/x86_64-linux-gnu:{os.environ.get('LD_LIBRARY_PATH', '')}"}
+        env = {**os.environ, "LD_LIBRARY_PATH": _build_ld_library_path()}
         _run_export(env)
         return
 

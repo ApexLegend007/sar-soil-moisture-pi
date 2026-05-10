@@ -34,4 +34,5 @@ dependencies = [
     "tqdm>=4.67.1",
     "xgboost==3.0.0",
     "yellowbrick>=1.5",
+    "nvidia-cudnn-cu12==9.3.*",
 ]

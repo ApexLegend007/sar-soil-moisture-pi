@@ -837,7 +837,7 @@ class ConformalRegression:
             "QuantileRegressor": QuantileRegressor(),
             "GradientBoostingRegressor": GradientBoostingRegressor(loss="quantile"),
             "HistGradientBoostingRegressor": HistGradientBoostingRegressor(loss="quantile"),
-            "LGBMRegressor": LGBMRegressor(device='gpu', objective='quantile', verbose=-1),
+            "LGBMRegressor": LGBMRegressor(device='gpu', objective='quantile', alpha=0.5, verbose=-1),
         }
 
         results = {}
