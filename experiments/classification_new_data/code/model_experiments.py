@@ -1,17 +1,15 @@
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import OrdinalEncoder, TargetEncoder, MinMaxScaler
 from sklearn.metrics import accuracy_score, classification_report, mean_absolute_error, mean_squared_error, mean_absolute_percentage_error, root_mean_squared_error, r2_score
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
 from sklearn.linear_model import QuantileRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVC, SVR
-from sklearn.model_selection import GridSearchCV
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMRegressor
 from yellowbrick.regressor import prediction_error
 
-
-from tensorflow.keras.callbacks import EarlyStopping # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau # type: ignore
 import tensorflow as tf
 
 gpus = tf.config.list_physical_devices('GPU')
@@ -28,6 +26,18 @@ from mapie.metrics.regression import regression_coverage_score, regression_mean_
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.rcParams.update({
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'font.size': 12,
+    'axes.titlesize': 14,
+    'axes.labelsize': 13,
+    'legend.fontsize': 11,
+    'xtick.labelsize': 11,
+    'ytick.labelsize': 11,
+})
+plt.style.use('seaborn-v0_8-whitegrid')
 import json
 import os
 
@@ -166,8 +176,9 @@ class ClassificationExperiment(Experiment):
             return
 
         models_to_run = {
-            'rf': RandomForestClassifier(random_state=42, n_jobs=-1),
-            'xgb': XGBClassifier(random_state=42, eval_metric='mlogloss'),
+            'rf':  RandomForestClassifier(random_state=42, n_jobs=-1),
+            'xgb': XGBClassifier(random_state=42, eval_metric='mlogloss',
+                                  device='cuda', tree_method='hist'),
             'ada': AdaBoostClassifier(random_state=42),
             'svc': SVC(probability=True, random_state=42)
         }
@@ -249,12 +260,14 @@ class RegressionExperiment(Experiment):
             X_train_data = self.X_train
             X_test_data = self.X_test
 
-        grid_search = GridSearchCV(
+        grid_search = RandomizedSearchCV(
             estimator=model,
-            param_grid=param_grid,
+            param_distributions=param_grid,
+            n_iter=40,
             cv=3,
             n_jobs=-1,
-            verbose=1
+            verbose=0,
+            random_state=42,
         )
 
         grid_search.fit(X_train_data, y_train)
@@ -272,15 +285,13 @@ class RegressionExperiment(Experiment):
         return self.make_result_dict(y_test, y_preds)
     
     def make_result_dict(self, y_true, y_preds):
-        result_dict = {}
-
-        result_dict['MAE'] = round(mean_absolute_error(y_true, y_preds), 4)
-        result_dict['MSE'] = round(mean_squared_error(y_true, y_preds), 4)
-        result_dict['RMSE'] = round(root_mean_squared_error(y_true, y_preds), 4)
-        result_dict['R2'] =  round(r2_score(y_true, y_preds), 4)
-        result_dict['MAPE'] = round(mean_absolute_percentage_error(y_true, y_preds), 4)
-
-        return result_dict
+        return {
+            'MAE':  round(float(mean_absolute_error(y_true, y_preds)), 6),
+            'MSE':  round(float(mean_squared_error(y_true, y_preds)), 6),
+            'RMSE': round(float(root_mean_squared_error(y_true, y_preds)), 6),
+            'R2':   round(float(r2_score(y_true, y_preds)), 6),
+            'MAPE': round(float(mean_absolute_percentage_error(y_true, y_preds)), 6),
+        }
 
     def make_plot(self, y_test, y_preds, model_name):
         plot_dir = self.results_path / "plots"
@@ -310,7 +321,7 @@ class RegressionExperiment(Experiment):
         
         # Save plot
         plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_actual_vs_predicted.png")
-        # plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+        plt.savefig(plot_path, bbox_inches='tight', dpi=300)
         plt.close()
 
     def run_experiment(self):
@@ -319,22 +330,25 @@ class RegressionExperiment(Experiment):
         # Random Forest
         rf = RandomForestRegressor(random_state=10, n_jobs=-1)
         rf_param_grid = {
-            'n_estimators': [100, 200, 500],     
-            'max_depth': [None, 5, 10, 20],      
-            'min_samples_split': [2, 5, 10],     
-            'min_samples_leaf': [1, 2, 4],       
-            'max_features': ['sqrt', 'log2']     
+            'n_estimators': [100, 200, 300, 500],
+            'max_depth': [None, 5, 10, 20],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4],
+            'max_features': ['sqrt', 'log2'],
         }
         results["RandomForest"] = self.fit_grid_search(rf, rf_param_grid, model_name="RandomForest")
 
-        # XGBoost
-        xgb = XGBRegressor(random_state=10, objective='reg:squarederror', device='cuda')
+        # XGBoost (GPU via tree_method='hist' + device='cuda')
+        xgb = XGBRegressor(random_state=10, objective='reg:squarederror',
+                            device='cuda', tree_method='hist')
         xgb_param_grid = {
-            'n_estimators': [100, 200, 500],
-            'max_depth': [3, 5, 7],
-            'learning_rate': [0.01, 0.05, 0.1],
-            'subsample': [0.8, 1.0],
-            'colsample_bytree': [0.8, 1.0]
+            'n_estimators': [100, 200, 300, 500],
+            'max_depth': [3, 5, 7, 9],
+            'learning_rate': [0.01, 0.05, 0.1, 0.2],
+            'subsample': [0.7, 0.8, 1.0],
+            'colsample_bytree': [0.7, 0.8, 1.0],
+            'reg_alpha': [0, 0.1, 0.5],
+            'reg_lambda': [1, 1.5, 2],
         }
         results["XGBoost"] = self.fit_grid_search(xgb, xgb_param_grid, model_name="XGBoost")
 
@@ -345,21 +359,21 @@ class RegressionExperiment(Experiment):
         )
         ada_param_grid = {
             'n_estimators': [50, 100, 200],
-            'learning_rate': [0.01, 0.05, 0.1, 1.0],
-            'estimator__max_depth': [2, 3, 5, None],
-            'estimator__min_samples_split': [2, 5, 10]
+            'learning_rate': [0.01, 0.05, 0.1, 0.5, 1.0],
+            'estimator__max_depth': [2, 3, 5],
+            'estimator__min_samples_split': [2, 5, 10],
         }
         results["AdaBoost"] = self.fit_grid_search(ada, ada_param_grid, model_name="AdaBoost")
 
-        # SVR (requires scaled data!)
+        # SVR (scaled; grid trimmed to practical kernels/ranges)
         svr = SVR()
         svr_param_grid = {
-            'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
-            'C': [0.1, 1, 10, 100],
-            'gamma': ['scale', 'auto', 0.01, 0.1, 1],
-            'epsilon': [0.01, 0.1, 0.2, 0.5]
+            'kernel': ['linear', 'rbf'],
+            'C': [1, 10, 50, 100],
+            'gamma': ['scale', 0.01, 0.1],
+            'epsilon': [0.05, 0.1, 0.2],
         }
-        if self.X_train_scaled is not None:  # only run if scaled data provided
+        if self.X_train_scaled is not None:
             results["SVR"] = self.fit_grid_search(svr, svr_param_grid, scaled=True, model_name="SVR")
         
         metrics_filename = self.results_path / f"metrics_{self.satellite}.json"
@@ -413,13 +427,18 @@ class ANNExperiment(Experiment):
             metrics=['mae']
         )
         
+        early_stopping = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+        progress = EpochTqdm(total_epochs=epochs)
+
         # Train the model
         self.history = self.model.fit(
             self.X_train_scaled, self.y_train,
             epochs=epochs,
             batch_size=batch_size,
             validation_data=(self.X_val_scaled, self.y_val),
-            verbose=verbose
+            verbose=verbose,
+            callbacks=[early_stopping, reduce_lr, progress]
         )
         
         # Evaluate on test set
@@ -563,8 +582,8 @@ class ANNExperiment(Experiment):
         
         # Save plot
         plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_prediction_error.png")
-        # plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-        plt.show()
+        plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+        plt.close()
 
 
 
@@ -635,27 +654,27 @@ class PredictionIntervalEstimation(Experiment):
         )
 
 
-        # print("--------- TRAINING UPPER MODEL -----------\n")
         early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-        progress = EpochTqdm(total_epochs=epochs)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+        progress = EpochTqdm(total_epochs=epochs, desc="Upper model")
         self.upper_model_history = self.upper_model.fit(
             self.X_train_scaled, self.y_train,
             epochs=epochs,
             batch_size=batch_size,
             validation_data=(self.X_val_scaled, self.y_val),
             verbose=verbose,
-            callbacks=[progress, early_stopping]
+            callbacks=[progress, early_stopping, reduce_lr]
         )
-        # print("--------- TRAINING LOWER MODEL -----------\n")
-        progress = EpochTqdm(total_epochs=epochs)
         early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+        progress = EpochTqdm(total_epochs=epochs, desc="Lower model")
         self.lower_model_history = self.lower_model.fit(
             self.X_train_scaled, self.y_train,
             epochs=epochs,
             batch_size=batch_size,
             validation_data=(self.X_val_scaled, self.y_val),
             verbose=verbose,
-            callbacks=[progress, early_stopping]
+            callbacks=[progress, early_stopping, reduce_lr]
         )
 
         # Predict on both test and validation sets
@@ -701,8 +720,8 @@ class PredictionIntervalEstimation(Experiment):
             return np.mean(y_pred_upper_vals - y_pred_lower_vals)
 
         return {
-            'PICP': float(picp(y_true, y_pred_lower, y_pred_upper)),
-            'MPIW': float(mpiw(y_pred_lower, y_pred_upper))
+            'PICP': round(float(picp(y_true, y_pred_lower, y_pred_upper)), 6),
+            'MPIW': round(float(mpiw(y_pred_lower, y_pred_upper)), 6),
         }
 
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, y_pred_lower_val, y_pred_upper_val, model_param_string):
@@ -818,7 +837,7 @@ class ConformalRegression:
             "QuantileRegressor": QuantileRegressor(),
             "GradientBoostingRegressor": GradientBoostingRegressor(loss="quantile"),
             "HistGradientBoostingRegressor": HistGradientBoostingRegressor(loss="quantile"),
-            # "LGBMRegressor": LGBMRegressor(objective="quantile")
+            "LGBMRegressor": LGBMRegressor(device='gpu', objective='quantile', verbose=-1),
         }
 
         results = {}
@@ -856,8 +875,8 @@ class ConformalRegression:
             return np.mean(y_pred_upper_vals - y_pred_lower_vals)
 
         return {
-            'PICP': float(picp(y_true, y_pred_lower, y_pred_upper)),
-            'MPIW': float(mpiw(y_pred_lower, y_pred_upper))
+            'PICP': round(float(picp(y_true, y_pred_lower, y_pred_upper)), 6),
+            'MPIW': round(float(mpiw(y_pred_lower, y_pred_upper)), 6),
         }
 
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, model_param_string):
@@ -918,11 +937,11 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         # If y > q_high, error is positive (y - q_high)
         # If inside, error is negative (max of two negatives)
         scores = np.maximum(y_lower_cal - y_true_cal, y_true_cal - y_upper_cal)
-        
-        # 2. Compute Q (1-alpha quantile)
-        # mapie logic usually uses (1-alpha)*(1 + 1/n) for finite sample correction, 
-        # but standard np.quantile is acceptable for large n.
-        q_hat = np.quantile(scores, 1 - alpha, method='higher')
+
+        # 2. Compute Q with finite-sample correction: (1-α)(1+1/n) quantile
+        n = len(scores)
+        q_level = min((1 - alpha) * (1 + 1 / n), 1.0)
+        q_hat = np.quantile(scores, q_level, method='higher')
         
         print(f"  > CQR Calibration constant (Q): {q_hat:.4f}")
         
@@ -939,9 +958,11 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         """
         # 1. Calculate absolute residuals on calibration set
         scores = np.abs(y_true_cal - y_pred_cal)
-        
-        # 2. Compute Q
-        q_hat = np.quantile(scores, 1 - alpha, method='higher')
+
+        # 2. Compute Q with finite-sample correction
+        n = len(scores)
+        q_level = min((1 - alpha) * (1 + 1 / n), 1.0)
+        q_hat = np.quantile(scores, q_level, method='higher')
         
         print(f"  > Split Conformal Calibration constant (Q): {q_hat:.4f}")
         
@@ -1232,6 +1253,7 @@ class TubeLossPredictionInterval(Experiment):
 
         progress = EpochTqdm(total_epochs=num_epochs)
         early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
 
         self.history = self.model.fit(
             self.X_train_scaled, self.y_train,
@@ -1239,7 +1261,7 @@ class TubeLossPredictionInterval(Experiment):
             epochs=num_epochs,
             batch_size=batch_size,
             verbose=0,
-            callbacks=[progress, early_stopping]
+            callbacks=[progress, early_stopping, reduce_lr]
         )
 
     def plot_losses(self):
@@ -1264,8 +1286,8 @@ class TubeLossPredictionInterval(Experiment):
         upper_preds = y_preds[:, 0]
         lower_preds = y_preds[:, 1]
 
-        picp = float(np.mean((upper_preds > y_ref[:, 0]) * (lower_preds < y_ref[:, 1])))
-        mpiw = float(np.round(np.mean(upper_preds - lower_preds), 3))
+        picp = round(float(np.mean((upper_preds > y_ref[:, 0]) * (lower_preds < y_ref[:, 1]))), 6)
+        mpiw = round(float(np.mean(upper_preds - lower_preds)), 6)
 
         return upper_preds, lower_preds, {'PICP': picp, 'MPIW': mpiw}
 
@@ -1296,7 +1318,7 @@ class TubeLossPredictionInterval(Experiment):
         if save_fig:
             savepath = self.results_path / "plots"
             os.makedirs(savepath, exist_ok=True)
-            plt.savefig(savepath / f"{self.satellite}_{model_param_string}.png", dpi=200, bbox_inches="tight")
+            plt.savefig(savepath / f"{self.satellite}_{model_param_string}.png", dpi=300, bbox_inches="tight")
 
         plt.show()
 
