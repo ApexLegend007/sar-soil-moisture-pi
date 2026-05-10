@@ -4,26 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **machine learning research project** for soil moisture estimation using SAR (Synthetic Aperture Radar) satellite data (EOS-04 and Sentinel-1). The core research focus is on **prediction interval (PI) estimation** — producing not just a point prediction but a calibrated uncertainty range for each soil moisture estimate.
+Machine learning research project for **soil moisture estimation** using SAR satellite data (EOS-04 and Sentinel-1). Core research focus: **prediction interval (PI) estimation** — calibrated uncertainty ranges alongside each soil moisture estimate.
 
-The project compares multiple uncertainty quantification approaches: quantile regression, tube loss, and conformal prediction. NDVI (from Sentinel-2 via Google Earth Engine) has been added as a third input feature alongside SAR polarization values.
+Methods compared: quantile regression, tube loss, conformal prediction. Input features: SAR polarization values + NDVI (Sentinel-2 via GEE) + DpRVI + Depolarization Rate.
 
-## Environment Setup
+## Environment
 
-**Platform**: Ubuntu 26.04, NVIDIA RTX 4060, CUDA 12.4, cuDNN 9  
-**Python**: 3.12 managed by [`uv`](https://github.com/astral-sh/uv), installed via `snap install astral-uv`.
+**Platform**: Ubuntu 26.04 · NVIDIA RTX 4060 · CUDA 12.4 · cuDNN 9  
+**Python**: 3.12 · `uv` installed via `snap install astral-uv`  
+**uv binary**: `/snap/bin/astral-uv.uv` (not plain `uv` — not on PATH)
 
 ```bash
 # Install dependencies
 /snap/bin/astral-uv.uv sync
 
-# Launch Jupyter
+# Launch Jupyter (preferred way to run experiments)
 /snap/bin/astral-uv.uv run jupyter notebook
 
-# Run a Python script directly
-/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/model_experiments.py
-
-# Execute a single notebook programmatically
+# Headless notebook execution
 LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
 /snap/bin/astral-uv.uv run python -m nbconvert --to notebook --execute --inplace \
   --ExecutePreprocessor.timeout=7200 \
@@ -31,117 +29,147 @@ LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
   experiments/classification_new_data/code/<notebook>.ipynb
 ```
 
-> **cuDNN**: Libraries are in `/usr/lib/x86_64-linux-gnu/`. The line `export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` is in `~/.bashrc`. Always prefix `nbconvert` runs with this or source `~/.bashrc` first.
-
-There is no build step, Makefile, or test suite — all experiments are driven by Jupyter notebooks.
+> **cuDNN path**: Libraries live in `/usr/lib/x86_64-linux-gnu/`. The export is in `~/.bashrc` but always prefix headless runs with `LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` to be safe.
 
 ## Repository Layout
 
 ```
 experiments/
   classification_new_data/
-    code/                        # model_experiments.py, constants.py, export_to_excel.py, run_all.ipynb + 15 notebooks
+    code/
+      model_experiments.py       # Central module — all experiment classes
+      constants.py               # Paths, X_cols (5 features each), y_col
+      export_to_excel.py         # Export metrics + plots → one .xlsx per output folder
+      run_all.ipynb              # Master: runs all 15 notebooks in order
+      add_ndvi.ipynb             # GEE pipeline for Sentinel-2 NDVI extraction
+      exploration_eos.ipynb      # EDA + CSV generation (computes DpRVI + Depolarization_Rate)
+      exploration_sentinel.ipynb # Same for Sentinel-1
+      ann_*.ipynb                # ANN regression (censored / uncensored)
+      classical_ml_*.ipynb       # RF, XGB, AdaBoost, SVR
+      classification_*.ipynb     # 4-class SM label classification
+      pi_estimation_*.ipynb      # Quantile regression PI
+      conformal_regression_*.ipynb
+      conformalized_quantile_regression_uncensored.ipynb
+      quantile_regression_tau_tuning_uncensored.ipynb
+      quantile_svr_HP_tuning.ipynb
     data/
-      sentinel-1-processed.csv   # includes NDVI column
-      eos-04-processed.csv       # includes NDVI column
-      EOS-04_datasheet.xlsx      # raw data with NDVI added per sheet (matched by lat/lon + date)
-      sentinel-1.xlsx            # raw data with NDVI added per sheet (matched by lat/lon + date)
-      ndvi_cache_eos.csv         # GEE extraction cache — skip re-fetching already-processed dates
-      ndvi_cache_sentinel.csv    # GEE extraction cache
-      ee-key.json                # GEE service account key (not committed to git)
-    output/                      # Generated plots + JSON metrics (not committed to git)
+      EOS-04_datasheet.xlsx      # Raw data — 20 date sheets, DpRVI column present
+      sentinel-1.xlsx            # Raw data — 14 date sheets, DpRVI column present
+      eos-04-processed.csv       # 5-feature processed dataset (1953 rows)
+      sentinel-1-processed.csv   # 5-feature processed dataset (1575 rows)
+      ndvi_cache_eos.csv         # GEE cache — do not delete
+      ndvi_cache_sentinel.csv    # GEE cache — do not delete
+      ee-key.json                # GEE service account key (gitignored)
+    output/                      # Generated plots + JSONs (gitignored)
 ```
 
-## Core Module Architecture
+## Core Module — `model_experiments.py`
 
-### `classification_new_data/code/model_experiments.py`
-
-The central module. All experiment classes inherit from `Experiment`, a base class that handles train/val/test splitting with configurable ratios. Each subclass accepts a `type='censored'/'uncensored'` parameter that controls the output subdirectory under `output/`.
+All classes inherit from `Experiment` (train/val/test split base). Each accepts `type='censored'/'uncensored'` which controls the output subdirectory.
 
 | Class | Purpose |
 |---|---|
-| `Experiment` | Base class — flexible train/val/test splitting, data validation |
-| `ClassificationExperiment` | RF, XGB, AdaBoost, SVC classification with ordinal encoding |
-| `RegressionExperiment` | Classical ML regression (RF, XGB, AdaBoost, SVR) with grid search |
-| `ANNExperiment` | Basic ANN regression (MSE loss) |
-| `PredictionIntervalEstimation` | Quantile regression PI via pinball loss; tunable τ |
-| `TubeLossPredictionInterval` | PI via custom tube loss; hyperparams `q`, `r`, `delta` |
-| `ConformalRegression` | Conformal prediction using MAPIE `ConformalizedQuantileRegressor` |
-| `ConformalizedQuantileExperiment` | Extends `PredictionIntervalEstimation`; adds CQR calibration, SVM split-conformal, and τ hyperparameter tuning |
+| `Experiment` | Base — configurable splits, data validation |
+| `ClassificationExperiment` | RF, XGB, AdaBoost, SVC classification |
+| `RegressionExperiment` | RF, XGB, AdaBoost, SVR with GridSearchCV |
+| `ANNExperiment` | Keras MLP — MSE loss |
+| `PredictionIntervalEstimation` | Quantile ANN — pinball loss, tunable τ |
+| `TubeLossPredictionInterval` | Tube loss ANN; params `q`, `r`, `delta` |
+| `ConformalRegression` | MAPIE `ConformalizedQuantileRegressor` |
+| `ConformalizedQuantileExperiment` | CQR + SVM split-conformal + τ tuning |
 
-All classes share the same interface: construct with `(X, y, satellite, ...)`, then call `.run_experiment(...)`. Metrics are saved as JSON and plots are saved to subdirectories under `output/`.
+Interface: `__init__(X, y, satellite, ...)` → `.run_experiment(...)`. Metrics → JSON, plots → `output/<folder>/plots/`.
 
-### `classification_new_data/code/constants.py`
-
-Defines dataset paths, feature column names, and the target column. Paths are derived relative to the file's location using `Path(__file__).resolve().parent.parent`, so no manual updates are needed when cloning to a new machine.
+## `constants.py`
 
 ```python
-X_cols_eos      = ['HH-pol', 'HV-pol', 'NDVI']
-X_cols_sentinel = ['VH-pol', 'VV-pol', 'NDVI']
+X_cols_eos      = ['HH-pol', 'HV-pol', 'NDVI', 'DpRVI', 'Depolarization_Rate']
+X_cols_sentinel = ['VH-pol', 'VV-pol', 'NDVI', 'DpRVI', 'Depolarization_Rate']
 y_col           = ['SM1 (%)']
 ```
 
-### `classification_new_data/code/export_to_excel.py`
+Paths derived from `Path(__file__).resolve().parent.parent` — no manual edits needed on new machines.
 
-Standalone script that exports all experiment results to Excel. For each folder under `output/`, it produces one `.xlsx` workbook containing:
-- A styled **Metrics** sheet with all JSON metrics flattened into a table
-- One sheet per PNG plot with the image embedded
+## `export_to_excel.py`
 
-Run: `/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/export_to_excel.py`
+Standalone script. For each folder under `output/`, produces `<folder>_results.xlsx` with:
+- **Metrics sheet**: all JSON metrics flattened into a styled table
+- **One sheet per PNG plot**: image embedded directly
 
-## GPU Configuration (already applied)
-
-The project runs on an **NVIDIA RTX 4060** with full GPU support. The following are already in place — do not revert:
-
-- `pyproject.toml`: uses `tensorflow>=2.20.0` and `xgboost==3.0.0` (not CPU variants)
-- `model_experiments.py`: GPU memory growth enabled + `mixed_float16` precision at import time
-- `RegressionExperiment`: `XGBRegressor(device='cuda', ...)`
-- `ClassificationExperiment` + `RegressionExperiment`: `RandomForestClassifier/Regressor(n_jobs=-1)`
-- All TF classes: default `batch_size=256` (up from 32)
-- `quantile_svr_HP_tuning.ipynb`: gamma sweep parallelised with `joblib.Parallel(n_jobs=-1)`
-
-### Which models run on GPU vs CPU
-
-| Models | GPU? | Reason |
-|---|---|---|
-| TF/Keras ANNs (all PI + ANN classes) | Yes | TF 2.21 + CUDA |
-| XGBoost | Yes | `device='cuda'` |
-| RandomForest, AdaBoost, SVR, GBR | No | scikit-learn is CPU-only |
-| Quantile SVR (cvxopt) | No | Custom QP solver, no GPU impl |
+```bash
+/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/export_to_excel.py
+```
 
 ## Data & Feature Schema
 
-- **EOS-04 features**: `HH-pol`, `HV-pol`, `NDVI`
-- **Sentinel-1 features**: `VH-pol`, `VV-pol`, `NDVI`
-- **Target**: `SM1 (%)` — surface soil moisture percentage
-- **All polarization values are in dB** (negative floats, e.g. -13.5, -19.4)
-- **NDVI**: Sentinel-2 NDVI extracted via Google Earth Engine, matched per field point using `(Latitude, Longitude)` coordinates and acquisition date. Dates with heavy cloud cover (monsoon months) have `NaN` NDVI filled with per-crop-type median.
+| Feature | Satellite | Formula / Source |
+|---|---|---|
+| `HH-pol` | EOS-04 | Raw SAR backscatter (dB) |
+| `HV-pol` | EOS-04 | Raw SAR backscatter (dB) |
+| `VH-pol` | Sentinel-1 | Raw SAR backscatter (dB) |
+| `VV-pol` | Sentinel-1 | Raw SAR backscatter (dB) |
+| `NDVI` | Both | Sentinel-2 via GEE, cloud-fill with crop median |
+| `DpRVI` | Both | `q*(q+3)/(q+1)²`, q = 10^((cross−co)/10), range [0,1] |
+| `Depolarization_Rate` | Both | `q` — linear cross/co ratio |
+
+**All pol values are in dB** (negative floats). DpRVI/Depolarization_Rate convert to linear internally.
+
+Target: `SM1 (%)` — surface soil moisture percentage.
+
+## GPU Configuration (fully applied — do not revert)
+
+| Setting | Location | Value |
+|---|---|---|
+| TF package | `pyproject.toml` | `tensorflow>=2.20.0` (not `-cpu`) |
+| XGBoost package | `pyproject.toml` | `xgboost==3.0.0` (not `-cpu`) |
+| GPU memory growth | `model_experiments.py` top | `set_memory_growth(gpu, True)` |
+| Mixed precision | `model_experiments.py` top | `set_global_policy('mixed_float16')` |
+| XGBoost device | `RegressionExperiment` | `XGBRegressor(device='cuda')` |
+| RF parallelism | Both RF classes | `n_jobs=-1` |
+| ANN batch size | All TF classes | `batch_size=256` (default) |
+| SVR gamma loop | `quantile_svr_HP_tuning.ipynb` | `joblib.Parallel(n_jobs=-1)` |
+
+### GPU vs CPU breakdown
+
+| Models | GPU | Why |
+|---|---|---|
+| TF/Keras ANNs | Yes | TF 2.21 + CUDA 12.4 |
+| XGBoost | Yes | `device='cuda'` |
+| RandomForest, AdaBoost, SVR, GBR | No | scikit-learn is CPU-only |
+| Quantile SVR (cvxopt) | No | Custom QP solver, no GPU support |
 
 ## NDVI Pipeline (`add_ndvi.ipynb`)
 
-Extracts Sentinel-2 NDVI for all field measurement points and merges it into the dataset.
-
-**Authentication**: Uses a GEE service account key at `data/ee-key.json` with project `sharp-weft-236811`.
+GEE service account key: `data/ee-key.json`, project: `sharp-weft-236811`.
 
 ```python
 credentials = ee.ServiceAccountCredentials(email=sa_email, key_file='data/ee-key.json')
 ee.Initialize(credentials=credentials, project='sharp-weft-236811')
 ```
 
-**Flow**:
-1. Load raw xlsx files (lat/lon/date per row)
-2. GEE: one `sampleRegions` call per acquisition date (~34 total) — results cached to `ndvi_cache_eos.csv` / `ndvi_cache_sentinel.csv`
-3. Merge into processed CSVs joined on `(Latitude, Longitude)` per sheet
-4. Overwrite original xlsx files in-place (NDVI as last column, matched by lat/lon per sheet)
-5. Update `constants.py` to add `'NDVI'` to both `X_cols_*` lists
+Flow: load xlsx → GEE `sampleRegions` per date (~34 calls, cached) → merge by lat/lon → overwrite xlsx in-place (NDVI as last column). Cache files prevent redundant GEE calls on re-run.
 
-**IAM requirement**: The service account needs `roles/serviceusage.serviceUsageConsumer` on the GCP project. Grant at: `console.developers.google.com/iam-admin/iam?project=sharp-weft-236811`
+IAM: service account needs `roles/serviceusage.serviceUsageConsumer` on `sharp-weft-236811`.
 
-**Re-running safely**: The cache files skip already-processed dates, so interruptions are safe.
+## DpRVI + Depolarization Rate (implemented)
+
+Computed in `exploration_eos.ipynb` / `exploration_sentinel.ipynb` from existing dB pol columns:
+
+```python
+# EOS-04
+q = 10 ** ((df['HV-pol'] - df['HH-pol']) / 10)
+# Sentinel-1
+q = 10 ** ((df['VH-pol'] - df['VV-pol']) / 10)
+
+df['DpRVI'] = q * (q + 3) / (q + 1) ** 2   # Mandal et al. 2020
+df['Depolarization_Rate'] = q
+```
+
+Also pre-computed and stored in all xlsx sheets. After any change to features, re-run exploration notebooks to regenerate processed CSVs before running ML notebooks.
 
 ## Master Notebook (`run_all.ipynb`)
 
-Runs all 15 experiment notebooks in correct order via `nbconvert --execute --inplace`. Prints a pass/fail/skip summary table with elapsed times. Exploration notebooks are skipped automatically if the raw xlsx files are absent.
+Runs 15 notebooks via `nbconvert --execute --inplace`. Prints pass/fail/skip table with elapsed times.
 
 **Execution order**:
 ```
@@ -156,74 +184,22 @@ quantile_regression_tau_tuning_uncensored →
 quantile_svr_HP_tuning
 ```
 
-⚠️ The exploration notebooks regenerate the processed CSVs — they must run before any ML stage so all feature columns are present.
+⚠️ Exploration notebooks must run first — they write the processed CSVs all downstream notebooks read.
 
-## Key ML Concepts in Use
+## Key Concepts
 
-- **Prediction Intervals (PI)**: Bounds `[y_lower, y_upper]` around a point estimate.
-- **PICP** (Prediction Interval Coverage Probability): Fraction of true values falling within the PI — target ≥ 0.95.
-- **MPIW** (Mean Prediction Interval Width): Average PI width — lower is better given adequate PICP.
-- **Conformal Prediction** (via MAPIE): Distribution-free coverage guarantees.
-- **Tube loss**: Custom loss that penalises predictions outside a confidence tube; controlled by `q` (target coverage), `r` (tube movement), and `delta` (recalibration penalty).
-- **Censored data**: Some SM values are below detection threshold (SM = 50); censored notebooks retain these rows, uncensored notebooks drop them.
-
-## NDVI Impact on Model Performance (with vs without NDVI)
-
-Adding NDVI as a 3rd feature improved all models:
-
-| Stage | Metric | EOS-04 improvement | Sentinel-1 improvement |
-|---|---|---|---|
-| Classical ML | R² | +0.14 to +0.15 | +0.12 to +0.13 |
-| Classical ML | MAE | −2.1 units | −1.2 units |
-| ANN | R² | +0.086 to +0.089 | +0.081 to +0.131 |
-| Quantile ANN PI | MPIW | −9 to −10 (EOS) | minimal change |
-| Conformal GBR | MPIW | −6 to −8 units tighter | −2 units tighter |
-
-## ⏳ Next Task — Add DpRVI and Depolarization Rate Features
-
-Two new SAR-derived features are to be added to both raw xlsx files, processed CSVs, and `constants.py`. They are computed purely from existing polarization columns — no external data fetch needed.
-
-### Formulas (polarization values are in dB — must convert to linear first)
-
-```python
-# For Sentinel-1 (cross=VH, co=VV):
-q = 10 ** ((df['VH-pol'] - df['VV-pol']) / 10)
-
-# For EOS-04 (cross=HV, co=HH):
-q = 10 ** ((df['HV-pol'] - df['HH-pol']) / 10)
-
-# Both satellites:
-df['DpRVI'] = q * (q + 3) / (q + 1) ** 2   # Mandal et al. 2020 — range [0, 1]
-df['Depolarization_Rate'] = q                # linear cross/co ratio
-```
-
-### Files to update
-
-1. `data/EOS-04_datasheet.xlsx` — add both columns to every date sheet (openpyxl)
-2. `data/sentinel-1.xlsx` — same
-3. `code/exploration_eos.ipynb` — add compute cell + add to `save_cols`
-4. `code/exploration_sentinel.ipynb` — same
-5. `code/constants.py`:
-   ```python
-   X_cols_eos      = ['HH-pol', 'HV-pol', 'NDVI', 'DpRVI', 'Depolarization_Rate']
-   X_cols_sentinel = ['VH-pol', 'VV-pol', 'NDVI', 'DpRVI', 'Depolarization_Rate']
-   ```
-6. Re-run exploration notebooks to regenerate processed CSVs
-
-ANN notebooks are safe — they use `n_features = X.shape[1]` dynamically.
-
-## Notebook Conventions
-
-Notebooks follow the naming pattern `{method}_{censored|uncensored}.ipynb` (e.g., `ann_censored.ipynb`, `conformal_regression_uncensored.ipynb`).
-
-ANN model architectures use `n_features = X_eos.shape[1]` (dynamically set) for the Keras `Input(shape=(n_features,))` layer — do not hardcode a specific number as the feature count grows.
+- **PICP**: Fraction of true values inside `[y_lower, y_upper]` — target ≥ 0.95.
+- **MPIW**: Mean interval width — lower is better given PICP ≥ 0.95.
+- **Conformal prediction** (MAPIE): distribution-free coverage guarantee.
+- **Tube loss**: custom loss with params `q` (target coverage), `r` (tube movement), `delta` (recalibration penalty).
+- **Censored**: SM = 50 rows retained. **Uncensored**: dropped.
 
 ## Gotchas
 
-- Every experiment class prints `Results → <path>` on construction so you can verify the `type` parameter routed output to the right folder before training starts.
-- `ConformalizedQuantileExperiment` overrides `results_path` after calling `super().__init__`, so the parent's print fires first (showing `pi_estimation_<type>`) and is immediately superseded by the child's print (`conformal_results_<type>`). The second path is the one that's actually used.
-- **ANN notebooks**: All Keras `Input(shape=...)` layers must use `n_features = X_eos.shape[1]` — never hardcode the feature count.
-- **Exploration notebooks write processed CSVs**: `exploration_eos.ipynb` and `exploration_sentinel.ipynb` regenerate `eos-04-processed.csv` and `sentinel-1-processed.csv`. If you add new features, update the `save_cols` list in the `to_csv` cell of both exploration notebooks.
-- **`pi_estimation_uncensored.ipynb`**: Contains hardcoded `OUTPUT_PATH / "pi_estimation_uncensored"` path in the JSON-saving cells — already fixed but watch for regressions.
-- **`quantile_svr_HP_tuning.ipynb`**: Data loading uses `DATA_PATH` from `constants` — do not revert to relative `data/` paths.
-- **cuDNN not found**: If TF shows `Could not find cuda drivers` despite `nvidia-smi` working, prepend `LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` to the run command or ensure `~/.bashrc` is sourced.
+- Every experiment class prints `Results → <path>` on construction — verify `type` is correct before training.
+- `ConformalizedQuantileExperiment` prints two paths on init — the second one (`conformal_results_<type>`) is the one actually used.
+- **ANN `Input(shape=...)`**: always use `n_features = X.shape[1]` — never hardcode a number since feature count changed (2 → 3 → 5).
+- **Exploration notebooks write CSVs**: if you add features, update `save_cols` in the `to_csv` cell of both exploration notebooks.
+- **cuDNN not found**: prefix command with `LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` or source `~/.bashrc`.
+- **`quantile_svr_HP_tuning.ipynb`**: uses `DATA_PATH` from `constants` — do not revert to relative paths.
+- **`pi_estimation_uncensored.ipynb`**: had hardcoded output path — fixed, watch for regressions.
