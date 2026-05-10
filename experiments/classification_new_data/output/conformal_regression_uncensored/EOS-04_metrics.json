@@ -4,8 +4,8 @@
         "MPIW": 40.5
     },
     "GradientBoostingRegressor": {
-        "PICP": 0.899441,
-        "MPIW": 29.742763
+        "PICP": 0.910615,
+        "MPIW": 29.722731
     },
     "HistGradientBoostingRegressor": {
         "PICP": 0.910615,
@@ -13,6 +13,6 @@
     },
     "LGBMRegressor": {
         "PICP": 0.905028,
-        "MPIW": 31.219564
+        "MPIW": 31.362754
     }
 }

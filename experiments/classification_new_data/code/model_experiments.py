@@ -536,8 +536,7 @@ class ANNExperiment(Experiment):
         )
         
         # Generate plots
-        # self.plot_line_comparison(test_results, val_results, y_pred, model_param_string)
-        self.plot_prediction_line(self.y_test, y_pred, model_param_string)
+        self.plot_line_comparison(test_results, val_results, y_pred, model_param_string)
 
         results = {
             "Test": test_results,
