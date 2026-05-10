@@ -10,24 +10,28 @@ The project compares multiple uncertainty quantification approaches: quantile re
 
 ## Environment Setup
 
-This project uses [`uv`](https://github.com/astral-sh/uv) for dependency management (Python 3.12).
+**Platform**: Ubuntu 26.04, NVIDIA RTX 4060, CUDA 12.4, cuDNN 9  
+**Python**: 3.12 managed by [`uv`](https://github.com/astral-sh/uv), installed via `snap install astral-uv`.
 
 ```bash
-# Install dependencies and register constants + model_experiments as importable modules
-uv sync
+# Install dependencies
+/snap/bin/astral-uv.uv sync
 
-# Launch Jupyter (notebooks can now import constants/model_experiments from any working directory)
-uv run jupyter notebook
+# Launch Jupyter
+/snap/bin/astral-uv.uv run jupyter notebook
 
 # Run a Python script directly
-uv run python experiments/classification_new_data/code/model_experiments.py
+/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/model_experiments.py
 
 # Execute a single notebook programmatically
-uv run python -m nbconvert --to notebook --execute --inplace \
+LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
+/snap/bin/astral-uv.uv run python -m nbconvert --to notebook --execute --inplace \
   --ExecutePreprocessor.timeout=7200 \
   --ExecutePreprocessor.kernel_name=python3 \
   experiments/classification_new_data/code/<notebook>.ipynb
 ```
+
+> **cuDNN**: Libraries are in `/usr/lib/x86_64-linux-gnu/`. The line `export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` is in `~/.bashrc`. Always prefix `nbconvert` runs with this or source `~/.bashrc` first.
 
 There is no build step, Makefile, or test suite — all experiments are driven by Jupyter notebooks.
 
@@ -36,7 +40,7 @@ There is no build step, Makefile, or test suite — all experiments are driven b
 ```
 experiments/
   classification_new_data/
-    code/                        # model_experiments.py, constants.py, add_ndvi.ipynb, run_all.ipynb + 35+ notebooks
+    code/                        # model_experiments.py, constants.py, export_to_excel.py, run_all.ipynb + 15 notebooks
     data/
       sentinel-1-processed.csv   # includes NDVI column
       eos-04-processed.csv       # includes NDVI column
@@ -45,7 +49,7 @@ experiments/
       ndvi_cache_eos.csv         # GEE extraction cache — skip re-fetching already-processed dates
       ndvi_cache_sentinel.csv    # GEE extraction cache
       ee-key.json                # GEE service account key (not committed to git)
-    output/
+    output/                      # Generated plots + JSON metrics (not committed to git)
 ```
 
 ## Core Module Architecture
@@ -77,11 +81,40 @@ X_cols_sentinel = ['VH-pol', 'VV-pol', 'NDVI']
 y_col           = ['SM1 (%)']
 ```
 
+### `classification_new_data/code/export_to_excel.py`
+
+Standalone script that exports all experiment results to Excel. For each folder under `output/`, it produces one `.xlsx` workbook containing:
+- A styled **Metrics** sheet with all JSON metrics flattened into a table
+- One sheet per PNG plot with the image embedded
+
+Run: `/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/export_to_excel.py`
+
+## GPU Configuration (already applied)
+
+The project runs on an **NVIDIA RTX 4060** with full GPU support. The following are already in place — do not revert:
+
+- `pyproject.toml`: uses `tensorflow>=2.20.0` and `xgboost==3.0.0` (not CPU variants)
+- `model_experiments.py`: GPU memory growth enabled + `mixed_float16` precision at import time
+- `RegressionExperiment`: `XGBRegressor(device='cuda', ...)`
+- `ClassificationExperiment` + `RegressionExperiment`: `RandomForestClassifier/Regressor(n_jobs=-1)`
+- All TF classes: default `batch_size=256` (up from 32)
+- `quantile_svr_HP_tuning.ipynb`: gamma sweep parallelised with `joblib.Parallel(n_jobs=-1)`
+
+### Which models run on GPU vs CPU
+
+| Models | GPU? | Reason |
+|---|---|---|
+| TF/Keras ANNs (all PI + ANN classes) | Yes | TF 2.21 + CUDA |
+| XGBoost | Yes | `device='cuda'` |
+| RandomForest, AdaBoost, SVR, GBR | No | scikit-learn is CPU-only |
+| Quantile SVR (cvxopt) | No | Custom QP solver, no GPU impl |
+
 ## Data & Feature Schema
 
 - **EOS-04 features**: `HH-pol`, `HV-pol`, `NDVI`
 - **Sentinel-1 features**: `VH-pol`, `VV-pol`, `NDVI`
 - **Target**: `SM1 (%)` — surface soil moisture percentage
+- **All polarization values are in dB** (negative floats, e.g. -13.5, -19.4)
 - **NDVI**: Sentinel-2 NDVI extracted via Google Earth Engine, matched per field point using `(Latitude, Longitude)` coordinates and acquisition date. Dates with heavy cloud cover (monsoon months) have `NaN` NDVI filled with per-crop-type median.
 
 ## NDVI Pipeline (`add_ndvi.ipynb`)
@@ -123,7 +156,7 @@ quantile_regression_tau_tuning_uncensored →
 quantile_svr_HP_tuning
 ```
 
-⚠️ The exploration notebooks regenerate the processed CSVs — they must run before any ML stage so the NDVI column is present.
+⚠️ The exploration notebooks regenerate the processed CSVs — they must run before any ML stage so all feature columns are present.
 
 ## Key ML Concepts in Use
 
@@ -146,120 +179,51 @@ Adding NDVI as a 3rd feature improved all models:
 | Quantile ANN PI | MPIW | −9 to −10 (EOS) | minimal change |
 | Conformal GBR | MPIW | −6 to −8 units tighter | −2 units tighter |
 
+## ⏳ Next Task — Add DpRVI and Depolarization Rate Features
+
+Two new SAR-derived features are to be added to both raw xlsx files, processed CSVs, and `constants.py`. They are computed purely from existing polarization columns — no external data fetch needed.
+
+### Formulas (polarization values are in dB — must convert to linear first)
+
+```python
+# For Sentinel-1 (cross=VH, co=VV):
+q = 10 ** ((df['VH-pol'] - df['VV-pol']) / 10)
+
+# For EOS-04 (cross=HV, co=HH):
+q = 10 ** ((df['HV-pol'] - df['HH-pol']) / 10)
+
+# Both satellites:
+df['DpRVI'] = q * (q + 3) / (q + 1) ** 2   # Mandal et al. 2020 — range [0, 1]
+df['Depolarization_Rate'] = q                # linear cross/co ratio
+```
+
+### Files to update
+
+1. `data/EOS-04_datasheet.xlsx` — add both columns to every date sheet (openpyxl)
+2. `data/sentinel-1.xlsx` — same
+3. `code/exploration_eos.ipynb` — add compute cell + add to `save_cols`
+4. `code/exploration_sentinel.ipynb` — same
+5. `code/constants.py`:
+   ```python
+   X_cols_eos      = ['HH-pol', 'HV-pol', 'NDVI', 'DpRVI', 'Depolarization_Rate']
+   X_cols_sentinel = ['VH-pol', 'VV-pol', 'NDVI', 'DpRVI', 'Depolarization_Rate']
+   ```
+6. Re-run exploration notebooks to regenerate processed CSVs
+
+ANN notebooks are safe — they use `n_features = X.shape[1]` dynamically.
+
 ## Notebook Conventions
 
 Notebooks follow the naming pattern `{method}_{censored|uncensored}.ipynb` (e.g., `ann_censored.ipynb`, `conformal_regression_uncensored.ipynb`).
 
-ANN model architectures use `n_features = X_eos.shape[1]` (dynamically set) for the Keras `Input(shape=(n_features,))` layer — do not hardcode `shape=(2,)` as the feature count is now 3.
-
-## ⏳ Next Task — GPU Migration on Ubuntu 26.04
-
-The project is being migrated from Windows (CPU-only) to **Ubuntu 26.04** where full NVIDIA GPU support is available via CUDA. The current `pyproject.toml` uses `tensorflow-cpu` and `xgboost-cpu` — both must be swapped to their GPU variants.
-
-### Step 1 — Install system dependencies
-
-```bash
-# NVIDIA driver (check your GPU model first)
-ubuntu-drivers autoinstall
-
-# CUDA 12.x toolkit
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-sudo dpkg -i cuda-keyring_1.1-1_all.deb
-sudo apt update && sudo apt install -y cuda-toolkit-12-6
-
-# cuDNN 9 (for TensorFlow 2.x)
-sudo apt install -y libcudnn9-cuda-12
-
-# Verify
-nvidia-smi
-nvcc --version
-```
-
-### Step 2 — Install `uv` on Ubuntu
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
-```
-
-### Step 3 — Update `pyproject.toml`
-
-Replace CPU-only packages with GPU versions:
-
-```toml
-# Remove:
-"tensorflow-cpu>=2.20.0"
-"xgboost-cpu==3.0.0"
-
-# Add:
-"tensorflow>=2.20.0"
-"xgboost==3.0.0"
-```
-
-Then sync:
-
-```bash
-uv sync
-```
-
-### Step 4 — Verify GPU is detected
-
-```python
-import tensorflow as tf
-print(tf.config.list_physical_devices('GPU'))  # should show your GPU
-
-import xgboost as xgb
-# XGBoost GPU: pass device='cuda' in model params
-```
-
-### Step 5 — Enable GPU memory growth (optional but recommended)
-
-Add to the top of `model_experiments.py` or any notebook before TF imports:
-
-```python
-import tensorflow as tf
-gpus = tf.config.list_physical_devices('GPU')
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
-```
-
-### Step 6 — Enable XGBoost GPU in `model_experiments.py`
-
-In `RegressionExperiment`, the XGBoost param grid should add `device='cuda'`:
-
-```python
-'XGBoost': {
-    'model': XGBRegressor(device='cuda', ...),
-    ...
-}
-```
-
-### Step 7 — Re-run `run_all.ipynb`
-
-```bash
-uv run python -m nbconvert --to notebook --execute --inplace \
-  --ExecutePreprocessor.timeout=7200 \
-  --ExecutePreprocessor.kernel_name=python3 \
-  experiments/classification_new_data/code/run_all.ipynb
-```
-
-### CUDA ↔ TensorFlow compatibility
-
-| TensorFlow | CUDA | cuDNN |
-|---|---|---|
-| 2.18 – 2.21 | 12.x | 9.x |
-| 2.13 – 2.17 | 11.8 | 8.6 |
-
-Use TF 2.21 (current) with CUDA 12.6 + cuDNN 9.
-
----
+ANN model architectures use `n_features = X_eos.shape[1]` (dynamically set) for the Keras `Input(shape=(n_features,))` layer — do not hardcode a specific number as the feature count grows.
 
 ## Gotchas
 
 - Every experiment class prints `Results → <path>` on construction so you can verify the `type` parameter routed output to the right folder before training starts.
 - `ConformalizedQuantileExperiment` overrides `results_path` after calling `super().__init__`, so the parent's print fires first (showing `pi_estimation_<type>`) and is immediately superseded by the child's print (`conformal_results_<type>`). The second path is the one that's actually used.
-- **ANN notebooks**: All Keras `Input(shape=...)` layers must use `n_features = X_eos.shape[1]` — not the hardcoded value `2`. This was fixed in all notebooks after NDVI was added as a 3rd feature.
-- **Exploration notebooks write processed CSVs**: `exploration_eos.ipynb` and `exploration_sentinel.ipynb` regenerate `eos-04-processed.csv` and `sentinel-1-processed.csv`. They include NDVI from the raw xlsx (which has NDVI per sheet). If you add new features, update the `save_cols` list in the `to_csv` cell of both exploration notebooks.
+- **ANN notebooks**: All Keras `Input(shape=...)` layers must use `n_features = X_eos.shape[1]` — never hardcode the feature count.
+- **Exploration notebooks write processed CSVs**: `exploration_eos.ipynb` and `exploration_sentinel.ipynb` regenerate `eos-04-processed.csv` and `sentinel-1-processed.csv`. If you add new features, update the `save_cols` list in the `to_csv` cell of both exploration notebooks.
 - **`pi_estimation_uncensored.ipynb`**: Contains hardcoded `OUTPUT_PATH / "pi_estimation_uncensored"` path in the JSON-saving cells — already fixed but watch for regressions.
 - **`quantile_svr_HP_tuning.ipynb`**: Data loading uses `DATA_PATH` from `constants` — do not revert to relative `data/` paths.
-- **GPU on Windows (deprecated)**: TensorFlow ≥ 2.11 has no native Windows GPU support; DirectML plugin requires Python ≤ 3.10 (incompatible with this project). Project has moved to Ubuntu 26.04 for GPU support.
+- **cuDNN not found**: If TF shows `Could not find cuda drivers` despite `nvidia-smi` working, prepend `LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH` to the run command or ensure `~/.bashrc` is sourced.
