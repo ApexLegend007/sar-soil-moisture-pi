@@ -20,6 +20,14 @@ for gpu in gpus:
 if gpus:
     tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
+try:
+    # 0 = TF picks the optimal count (all available cores)
+    # Must be set before TF context is initialized; silently skip if already initialized.
+    tf.config.threading.set_inter_op_parallelism_threads(0)
+    tf.config.threading.set_intra_op_parallelism_threads(0)
+except RuntimeError:
+    pass
+
 from mapie.utils import train_conformalize_test_split
 from mapie.regression import ConformalizedQuantileRegressor
 from mapie.metrics.regression import regression_coverage_score, regression_mean_width_score
@@ -179,7 +187,7 @@ class ClassificationExperiment(Experiment):
         models_to_run = {
             'rf':  RandomForestClassifier(random_state=42, n_jobs=-1),
             'xgb': XGBClassifier(random_state=42, eval_metric='mlogloss',
-                                  device='cuda', tree_method='hist'),
+                                  device='cuda', tree_method='hist', nthread=-1),
             'ada': AdaBoostClassifier(random_state=42),
             'svc': SVC(probability=True, random_state=42)
         }
@@ -356,7 +364,7 @@ class RegressionExperiment(Experiment):
 
         # XGBoost (GPU via tree_method='hist' + device='cuda')
         xgb = XGBRegressor(random_state=10, objective='reg:squarederror',
-                            device='cuda', tree_method='hist')
+                            device='cuda', tree_method='hist', nthread=-1)
         xgb_param_grid = {
             'n_estimators': [100, 200, 300, 500],
             'max_depth': [3, 5, 7, 9],
@@ -841,7 +849,7 @@ class ConformalRegression:
             "QuantileRegressor": QuantileRegressor(),
             "GradientBoostingRegressor": GradientBoostingRegressor(loss="quantile"),
             "HistGradientBoostingRegressor": HistGradientBoostingRegressor(loss="quantile"),
-            "LGBMRegressor": LGBMRegressor(device='gpu', objective='quantile', alpha=0.5, verbose=-1),
+            "LGBMRegressor": LGBMRegressor(device='gpu', objective='quantile', alpha=0.5, verbose=-1, n_jobs=-1),
         }
 
         results = {}
@@ -1078,16 +1086,17 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         plt.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Confidence')
 
         metrics_text = f"{model_name}\nPICP: {metrics['PICP']*100:.2f}%\nMPIW: {metrics['MPIW']:.4f}"
-        plt.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction', 
-                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8), 
-                    verticalalignment='top', fontsize=14, fontfamily='monospace')
-        
+        plt.annotate(metrics_text, xy=(0.02, 0.97), xycoords='axes fraction',
+                    bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.85),
+                    verticalalignment='top', fontsize=11, fontfamily='monospace')
+
         plt.xlabel('Sample Index')
-        plt.ylabel('Value')
-        plt.title(f'{self.satellite} - {model_name} Prediction Intervals')
+        plt.ylabel('Soil Moisture (%)')
+        plt.title(f'{self.satellite}: {model_name} — Conformalized Quantile Prediction Interval')
         plt.legend(loc='upper right')
         plt.grid(True, alpha=0.3)
-        
+        plt.tight_layout()
+
         plot_path = self.results_path / f"{self.satellite}_{model_name}_plot.png"
         plt.savefig(plot_path, bbox_inches='tight', dpi=300)
         plt.close()
