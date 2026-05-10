@@ -1,0 +1,14 @@
+{
+    "SVM_Split_Conformal": {
+        "PICP": 0.905028,
+        "MPIW": 34.022218
+    },
+    "Linear_CQR": {
+        "PICP": 0.938547,
+        "MPIW": 40.84
+    },
+    "ANN_CQR": {
+        "PICP": 0.932961,
+        "MPIW": 37.078283
+    }
+}

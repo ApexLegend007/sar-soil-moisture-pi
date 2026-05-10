@@ -18,5 +18,4 @@ wheels/
 # Sensitive keys
 experiments/classification_new_data/data/ee-key.json
 
-# Generated outputs (re-run notebooks to reproduce)
-experiments/classification_new_data/output/
+# Generated outputs tracked in git on improvements branch
