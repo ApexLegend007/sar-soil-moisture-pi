@@ -7,8 +7,6 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVC, SVR
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMRegressor
-from yellowbrick.regressor import prediction_error
-
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau # type: ignore
 import tensorflow as tf
 
@@ -225,6 +223,7 @@ class RegressionExperiment(Experiment):
         super().__init__(X, y, train_size, test_size, val_size, split_type, print_stats)
         self.satellite = satellite
         self.results_path = OUTPUT_PATH / f"ml_experiment_{type}"
+        os.makedirs(self.results_path, exist_ok=True)
         print(f"Results → {self.results_path}")
 
         self.__scale_data()
@@ -278,10 +277,8 @@ class RegressionExperiment(Experiment):
         
         y_preds = best_model.predict(X_test_data)
 
-        # self.make_plot(y_test, y_preds, model_name)
-        # self.plot_prediction_line(y_test, y_preds, model_name)
-        visualizer = prediction_error(best_model, X_train_data, y_train, X_test_data, y_test)
-        visualizer.show()
+        self.make_plot(y_test, y_preds, model_name)
+        self.plot_prediction_line(y_test, y_preds, model_name)
         return self.make_result_dict(y_test, y_preds)
     
     def make_result_dict(self, y_true, y_preds):
@@ -394,6 +391,7 @@ class ANNExperiment(Experiment):
         super().__init__(X, y, train_size, test_size, val_size, split_type, print_stats)
         self.satellite = satellite
         self.results_path = OUTPUT_PATH / f"ann_experiments_{type}"
+        os.makedirs(self.results_path, exist_ok=True)
         print(f"Results → {self.results_path}")
 
         self.__scale_data()
@@ -591,6 +589,7 @@ class PredictionIntervalEstimation(Experiment):
     def __init__(self, X, y, satellite, train_size=0.8, test_size=0.1, val_size=0.1, split_type='train-val-test', print_stats=None, type='uncensored'):
         super().__init__(X, y, train_size, test_size, val_size, split_type, print_stats)
         self.results_path = OUTPUT_PATH / f"pi_estimation_{type}"
+        os.makedirs(self.results_path, exist_ok=True)
         print(f"Results → {self.results_path}")
         self.satellite = satellite
 
@@ -785,8 +784,6 @@ class PredictionIntervalEstimation(Experiment):
             "test": results_test
         }
         print(f"{model_param_string}: {json.dumps(results, indent=4)}")
-        # with open(self.results_path / f"{self.satellite}_metrics.json", "w") as f:
-        #     json.dump(results, f, indent=4)
 
         return results
 
@@ -801,6 +798,7 @@ class ConformalRegression:
         self.test_size = test_size
         self.random_seed = 42
         self.results_path = OUTPUT_PATH / f"conformal_regression_{type}"
+        os.makedirs(self.results_path, exist_ok=True)
         print(f"Results → {self.results_path}")
         self.__prepare_data(print_splits)
     
@@ -1205,6 +1203,7 @@ class TubeLossPredictionInterval(Experiment):
         super().__init__(X, y, train_size, test_size, val_size, split_type, print_stats)
         self.satellite = satellite
         self.results_path = OUTPUT_PATH / f"tube_loss_{type}"
+        os.makedirs(self.results_path, exist_ok=True)
         print(f"Results → {self.results_path}")
 
         self.q = q       # target coverage probability (default: 0.95)
