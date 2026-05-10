@@ -306,8 +306,11 @@ def run_pipeline(skip_names: list[str], start_from: Optional[str], export_after:
                 live.stop()
                 console.print(f"\n[bold red]✗ FAILED:[/] {s.name}")
                 console.print(f"[dim]{s.error_tail}[/]")
-                console.print("\n[yellow]Continue with next notebook? [Y/n][/] ", end="")
-                ans = input().strip().lower()
+                try:
+                    console.print("\n[yellow]Continue with next notebook? [Y/n][/] ", end="")
+                    ans = input().strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    ans = "y"
                 if ans == "n":
                     break
                 live.start()

@@ -278,7 +278,6 @@ class RegressionExperiment(Experiment):
         y_preds = best_model.predict(X_test_data)
 
         self.make_plot(y_test, y_preds, model_name)
-        self.plot_prediction_line(y_test, y_preds, model_name)
         return self.make_result_dict(y_test, y_preds)
     
     def make_result_dict(self, y_true, y_preds):
