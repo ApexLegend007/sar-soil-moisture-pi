@@ -7,6 +7,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVC, SVR
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMRegressor
+from catboost import CatBoostRegressor
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau # type: ignore
 import tensorflow as tf
 
@@ -17,8 +18,7 @@ for gpu in gpus:
     except RuntimeError:
         pass  # already initialized by the notebook before this import
 
-if gpus:
-    tf.keras.mixed_precision.set_global_policy('mixed_float16')
+# mixed_float16 removed — float16 reduces regression precision on small-range targets like SM (%)
 
 try:
     # 0 = TF picks the optimal count (all available cores)
@@ -338,13 +338,12 @@ class RegressionExperiment(Experiment):
         ax.legend(loc='upper right')
         ax.grid(True, alpha=0.3)
 
-        metrics_text = f'MAE: {mae:.4f}\nMAPE: {mape:.2f}%'
-        ax.annotate(metrics_text, xy=(0.02, 0.97), xycoords='axes fraction',
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
-                    verticalalignment='top', fontsize=11)
-
+        metrics_text = f'MAE: {mae:.4f}  |  MAPE: {mape:.2f}%'
         plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_actual_vs_predicted.png")
         plt.tight_layout()
+        fig.text(0.5, -0.02, metrics_text, ha='center', va='top',
+                 fontsize=10, fontfamily='monospace',
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
         plt.savefig(plot_path, bbox_inches='tight', dpi=300)
         plt.close()
 
@@ -399,7 +398,29 @@ class RegressionExperiment(Experiment):
         }
         if self.X_train_scaled is not None:
             results["SVR"] = self.fit_grid_search(svr, svr_param_grid, scaled=True, model_name="SVR")
-        
+
+        # LightGBM (GPU)
+        lgbm = LGBMRegressor(random_state=10, device='gpu', n_jobs=-1, verbose=-1)
+        lgbm_param_grid = {
+            'n_estimators': [100, 200, 300, 500],
+            'max_depth': [3, 5, 7, -1],
+            'learning_rate': [0.01, 0.05, 0.1, 0.2],
+            'num_leaves': [31, 63, 127],
+            'subsample': [0.7, 0.8, 1.0],
+            'colsample_bytree': [0.7, 0.8, 1.0],
+        }
+        results["LightGBM"] = self.fit_grid_search(lgbm, lgbm_param_grid, model_name="LightGBM")
+
+        # CatBoost (GPU)
+        cat = CatBoostRegressor(random_state=10, task_type='GPU', verbose=0)
+        cat_param_grid = {
+            'iterations': [100, 200, 300],
+            'depth': [4, 6, 8],
+            'learning_rate': [0.01, 0.05, 0.1],
+            'l2_leaf_reg': [1, 3, 5],
+        }
+        results["CatBoost"] = self.fit_grid_search(cat, cat_param_grid, model_name="CatBoost")
+
         metrics_filename = self.results_path / f"metrics_{self.satellite}.json"
         try:
             with open(metrics_filename, 'w') as f:
@@ -514,11 +535,8 @@ class ANNExperiment(Experiment):
         ax.set_ylabel('Soil Moisture (%)')
         ax.set_title(f'{self.satellite}: Actual vs Predicted — {model_params}')
 
-        metrics_text = (f'Test MAE: {test_mae:.4f}  |  Val MAE: {val_mae:.4f}\n'
-                        f'Test MSE: {test_mse:.2f}   |  Val MSE: {val_mse:.2f}')
-        ax.annotate(metrics_text, xy=(0.02, 0.97), xycoords='axes fraction',
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
-                    verticalalignment='top', fontsize=11, fontfamily='monospace')
+        metrics_text = (f'Test MAE: {test_mae:.4f}  |  Val MAE: {val_mae:.4f}  |  '
+                        f'Test MSE: {test_mse:.2f}  |  Val MSE: {val_mse:.2f}')
 
         plot_path = self.results_path / "plots"
         os.makedirs(plot_path, exist_ok=True)
@@ -526,6 +544,9 @@ class ANNExperiment(Experiment):
         ax.legend(loc='upper right')
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
+        fig.text(0.5, -0.02, metrics_text, ha='center', va='top',
+                 fontsize=10, fontfamily='monospace',
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
         plt.savefig(plot_path / f"{self.satellite}_{model_params}.png", dpi=300, bbox_inches='tight')
         plt.close()
     
@@ -585,10 +606,7 @@ class ANNExperiment(Experiment):
         plt.ylabel('Predicted Values')
         plt.title(f'{self.satellite}: Prediction Error — {model_name}')
 
-        metrics_text = f'MAE: {mae:.4f}\nMAPE: {mape:.2f}%\nR²: {r2:.4f}'
-        plt.annotate(metrics_text, xy=(0.05, 0.95), xycoords='axes fraction',
-                    bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.8),
-                    verticalalignment='top', fontsize=11)
+        metrics_text = f'MAE: {mae:.4f}  |  MAPE: {mape:.2f}%  |  R²: {r2:.4f}'
 
         plt.xlim(p_min, p_max)
         plt.ylim(p_min, p_max)
@@ -597,6 +615,9 @@ class ANNExperiment(Experiment):
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
+        plt.gcf().text(0.5, -0.02, metrics_text, ha='center', va='top',
+                       fontsize=10, fontfamily='monospace',
+                       bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
         plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_prediction_error.png")
         plt.savefig(plot_path, bbox_inches='tight', dpi=300)
         plt.close()
@@ -753,14 +774,8 @@ class PredictionIntervalEstimation(Experiment):
         ax.plot(indices, y_pred_upper_test, color='orange', linestyle='--', label='Upper Bound')
         ax.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Prediction Interval')
 
-        test_metrics = f"Test  | PICP: {test_eval_dict['PICP']*100:5.2f}% | MPIW: {test_eval_dict['MPIW']:.4f}"
-        val_metrics  = f"Valid | PICP: {val_eval_dict['PICP']*100:5.2f}% | MPIW: {val_eval_dict['MPIW']:.4f}"
-        ax.annotate(
-            f"{test_metrics}\n{val_metrics}",
-            xy=(0.02, 0.97), xycoords='axes fraction',
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.85),
-            verticalalignment='top', fontsize=11, fontfamily='monospace'
-        )
+        pi_metrics = (f"Test  | PICP: {test_eval_dict['PICP']*100:5.2f}% | MPIW: {test_eval_dict['MPIW']:.4f}"
+                      f"    Valid | PICP: {val_eval_dict['PICP']*100:5.2f}% | MPIW: {val_eval_dict['MPIW']:.4f}")
 
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
@@ -771,6 +786,9 @@ class PredictionIntervalEstimation(Experiment):
         plot_dir = self.results_path / "plots"
         os.makedirs(plot_dir, exist_ok=True)
         plt.tight_layout()
+        fig.text(0.5, -0.02, pi_metrics, ha='center', va='top',
+                 fontsize=10, fontfamily='monospace',
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
         plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png", dpi=300, bbox_inches='tight')
         plt.close()
 
@@ -902,12 +920,6 @@ class ConformalRegression:
         ax.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Prediction Interval')
 
         test_metrics = f"Test  | PICP: {test_eval_dict['PICP']*100:5.2f}% | MPIW: {test_eval_dict['MPIW']:.4f}"
-        ax.annotate(
-            test_metrics,
-            xy=(0.02, 0.97), xycoords='axes fraction',
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.85),
-            verticalalignment='top', fontsize=11, fontfamily='monospace'
-        )
 
         plot_dir = self.results_path / "plots"
         os.makedirs(plot_dir, exist_ok=True)
@@ -918,6 +930,9 @@ class ConformalRegression:
         ax.legend(loc='upper right')
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
+        fig.text(0.5, -0.02, test_metrics, ha='center', va='top',
+                 fontsize=10, fontfamily='monospace',
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
         plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png", dpi=300, bbox_inches='tight')
         plt.close()
 
@@ -1084,10 +1099,7 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         plt.plot(indices, y_pred_upper_test, color='orange', linestyle='--', label='Upper Bound', linewidth=1)
         plt.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Confidence')
 
-        metrics_text = f"{model_name}\nPICP: {metrics['PICP']*100:.2f}%\nMPIW: {metrics['MPIW']:.4f}"
-        plt.annotate(metrics_text, xy=(0.02, 0.97), xycoords='axes fraction',
-                    bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.85),
-                    verticalalignment='top', fontsize=11, fontfamily='monospace')
+        metrics_text = f"{model_name}  |  PICP: {metrics['PICP']*100:.2f}%  |  MPIW: {metrics['MPIW']:.4f}"
 
         plt.xlabel('Sample Index')
         plt.ylabel('Soil Moisture (%)')
@@ -1095,6 +1107,9 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         plt.legend(loc='upper right')
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
+        plt.gcf().text(0.5, -0.02, metrics_text, ha='center', va='top',
+                       fontsize=10, fontfamily='monospace',
+                       bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
 
         plot_path = self.results_path / f"{self.satellite}_{model_name}_plot.png"
         plt.savefig(plot_path, bbox_inches='tight', dpi=300)
@@ -1311,17 +1326,18 @@ class TubeLossPredictionInterval(Experiment):
         plt.plot(indices, y_pred_upper_test, color='orange', linestyle='--', label='Upper Bound')
         plt.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Prediction Interval')
 
-        test_metrics = f"Test  | PICP: {test_results['PICP']*100:5.2f}% | MPIW: {test_results['MPIW']:.4f}"
-        val_metrics  = f"Valid | PICP: {val_results['PICP']*100:5.2f}% | MPIW: {val_results['MPIW']:.4f}"
-        plt.annotate(f"{test_metrics}\n{val_metrics}", xy=(0.02, 0.98), xycoords='axes fraction',
-                     bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8),
-                     verticalalignment='top', fontsize=12, fontfamily='monospace')
+        pi_metrics = (f"Test  | PICP: {test_results['PICP']*100:5.2f}% | MPIW: {test_results['MPIW']:.4f}"
+                      f"    Valid | PICP: {val_results['PICP']*100:5.2f}% | MPIW: {val_results['MPIW']:.4f}")
 
         plt.xlabel('Sample Index')
         plt.ylabel('Soil Moisture (%)')
         plt.title(f'{self.satellite} — Tube Loss PI: {model_param_string} (r={self.r}, δ={self.delta})')
         plt.legend(fontsize=14)
         plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.gcf().text(0.5, -0.02, pi_metrics, ha='center', va='top',
+                       fontsize=10, fontfamily='monospace',
+                       bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
 
         if save_fig:
             savepath = self.results_path / "plots"
