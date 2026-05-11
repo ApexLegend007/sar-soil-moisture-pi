@@ -292,11 +292,12 @@ class RegressionExperiment(Experiment):
         grid_search = RandomizedSearchCV(
             estimator=model,
             param_distributions=param_grid,
-            n_iter=40,
-            cv=3,
+            n_iter=50,
+            cv=5,
             n_jobs=-1,
             verbose=0,
             random_state=42,
+            scoring='neg_mean_absolute_error',
         )
 
         grid_search.fit(X_train_data, y_train)
@@ -402,22 +403,26 @@ class RegressionExperiment(Experiment):
         # LightGBM (GPU)
         lgbm = LGBMRegressor(random_state=10, device='gpu', n_jobs=-1, verbose=-1)
         lgbm_param_grid = {
-            'n_estimators': [100, 200, 300, 500],
+            'n_estimators': [200, 300, 500, 800],
             'max_depth': [3, 5, 7, -1],
             'learning_rate': [0.01, 0.05, 0.1, 0.2],
-            'num_leaves': [31, 63, 127],
-            'subsample': [0.7, 0.8, 1.0],
-            'colsample_bytree': [0.7, 0.8, 1.0],
+            'num_leaves': [31, 63, 127, 255],
+            'subsample': [0.6, 0.7, 0.8, 1.0],
+            'colsample_bytree': [0.6, 0.7, 0.8, 1.0],
+            'min_child_samples': [10, 20, 30],
+            'reg_alpha': [0, 0.1, 0.5],
+            'reg_lambda': [0, 0.1, 1.0],
         }
         results["LightGBM"] = self.fit_grid_search(lgbm, lgbm_param_grid, model_name="LightGBM")
 
         # CatBoost (GPU)
         cat = CatBoostRegressor(random_state=10, task_type='GPU', verbose=0)
         cat_param_grid = {
-            'iterations': [100, 200, 300],
-            'depth': [4, 6, 8],
-            'learning_rate': [0.01, 0.05, 0.1],
-            'l2_leaf_reg': [1, 3, 5],
+            'iterations': [200, 300, 500, 800],
+            'depth': [4, 6, 8, 10],
+            'learning_rate': [0.01, 0.03, 0.05, 0.1],
+            'l2_leaf_reg': [1, 3, 5, 10],
+            'bagging_temperature': [0, 0.5, 1.0],
         }
         results["CatBoost"] = self.fit_grid_search(cat, cat_param_grid, model_name="CatBoost")
 
