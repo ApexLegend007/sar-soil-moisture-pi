@@ -16,18 +16,20 @@ A machine learning research project for estimating surface soil moisture from SA
 | Tube Loss ANN | Custom loss penalising predictions outside a confidence tube |
 | Conformal Regression | Distribution-free coverage via MAPIE `ConformalizedQuantileRegressor` |
 | Conformalized Quantile Regression (CQR) | Quantile ANN + conformal calibration step |
-| Quantile SVR | Support vector quantile regression with hyperparameter sweep |
+| Quantile SVR | Support vector quantile regression with 2D C×gamma hyperparameter sweep |
 
-### Input Features (5 per satellite)
+### Input Features (7 per satellite)
 
 | Satellite | Features |
 |---|---|
-| EOS-04 | `HH-pol`, `HV-pol`, `NDVI`, `DpRVI`, `Depolarization_Rate` |
-| Sentinel-1 | `VH-pol`, `VV-pol`, `NDVI`, `DpRVI`, `Depolarization_Rate` |
+| EOS-04 | `HH-pol`, `HV-pol`, `NDVI`, `DpRVI`, `Depolarization_Rate`, `RFDI`, `RVI4S1` |
+| Sentinel-1 | `VH-pol`, `VV-pol`, `NDVI`, `DpRVI`, `Depolarization_Rate`, `RFDI`, `RVI4S1` |
 
 **NDVI** — Sentinel-2 NDVI extracted via Google Earth Engine, matched by `(Latitude, Longitude)` + acquisition date.  
 **DpRVI** — Dual-pol Radar Vegetation Index (Mandal et al. 2020); derived from polarization ratio, range [0, 1].  
-**Depolarization Rate** — Linear cross-pol / co-pol ratio; measures canopy/soil depolarization effect.
+**Depolarization Rate** — Linear cross-pol / co-pol ratio `q`.  
+**RFDI** — Radar Forest Degradation Index: `(1−q)/(1+q)`, range [−1, 1]; higher values indicate soil-dominant scattering.  
+**RVI4S1** — Dual-pol vegetation index for Sentinel-1: `4q/(1+q)`, range [0, 1]; increases with vegetation volume scattering.
 
 ### Key Metrics
 
@@ -40,7 +42,7 @@ A machine learning research project for estimating surface soil moisture from SA
 
 **Platform**: Ubuntu 26.04 · NVIDIA RTX 4060 · CUDA 12.4 · cuDNN 9  
 **Python**: 3.12 via [`uv`](https://github.com/astral-sh/uv) (installed via `snap install astral-uv`)  
-**GPU stack**: TensorFlow 2.21 + XGBoost 3.0 (`device='cuda'`)
+**GPU stack**: TensorFlow 2.21 + XGBoost 3.0 (`device='cuda'`) + LightGBM (`device='gpu'`) + CatBoost (`task_type='GPU'`)
 
 ### Setup
 
@@ -64,25 +66,25 @@ experiments/
   classification_new_data/
     code/
       model_experiments.py          # All experiment classes (central module)
-      constants.py                  # Paths, feature columns (5 each), target column
+      constants.py                  # Paths, feature columns (7 each), target column
       export_to_excel.py            # Export all metrics + plots → .xlsx workbooks
       run_all.ipynb                 # Master notebook — runs all 15 experiments in order
       add_ndvi.ipynb                # GEE pipeline: extract + merge Sentinel-2 NDVI
-      exploration_eos.ipynb         # EDA + CSV generation for EOS-04 (computes DpRVI)
-      exploration_sentinel.ipynb    # EDA + CSV generation for Sentinel-1 (computes DpRVI)
+      exploration_eos.ipynb         # EDA + CSV generation for EOS-04 (DpRVI, RFDI, RVI4S1)
+      exploration_sentinel.ipynb    # EDA + CSV generation for Sentinel-1 (DpRVI, RFDI, RVI4S1)
       ann_*.ipynb                   # ANN regression (censored / uncensored)
-      classical_ml_*.ipynb          # RF, XGB, AdaBoost, SVR regression
+      classical_ml_*.ipynb          # RF, XGB, AdaBoost, SVR, LightGBM, CatBoost regression
       classification_*.ipynb        # 4-class SM classification
       pi_estimation_*.ipynb         # Quantile regression prediction intervals
       conformal_regression_*.ipynb  # Conformal PI estimation
       conformalized_quantile_regression_uncensored.ipynb
       quantile_regression_tau_tuning_uncensored.ipynb
-      quantile_svr_HP_tuning.ipynb
+      quantile_svr_HP_tuning.ipynb  # 2D C×gamma hyperparameter sweep
     data/
-      EOS-04_datasheet.xlsx         # Raw measurements — 20 date sheets, includes DpRVI
-      sentinel-1.xlsx               # Raw measurements — 14 date sheets, includes DpRVI
-      eos-04-processed.csv          # Cleaned, 5-feature dataset (1953 rows)
-      sentinel-1-processed.csv      # Cleaned, 5-feature dataset (1575 rows)
+      EOS-04_datasheet.xlsx         # Raw measurements — 20 date sheets, all 7 features stored
+      sentinel-1.xlsx               # Raw measurements — 14 date sheets, all 7 features stored
+      eos-04-processed.csv          # Cleaned, 7-feature dataset (~1953 rows)
+      sentinel-1-processed.csv      # Cleaned, 7-feature dataset (~1575 rows)
       ndvi_cache_eos.csv            # GEE NDVI cache (avoids re-fetching)
       ndvi_cache_sentinel.csv       # GEE NDVI cache
       ee-key.json                   # GEE service account key (not committed)
@@ -113,6 +115,14 @@ LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
   experiments/classification_new_data/code/run_all.ipynb
 ```
 
+### Pipeline runner (from a specific stage)
+
+```bash
+LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
+/snap/bin/astral-uv.uv run python experiments/classification_new_data/code/run_pipeline.py \
+  --from ann_censored
+```
+
 ### Single notebook
 
 ```bash
@@ -132,7 +142,7 @@ After running experiments, export every metric table and plot to `.xlsx`:
 ```
 
 Produces one workbook per experiment folder under `output/`:
-- **Metrics sheet** — all JSON metrics flattened into a styled table (source file · metric path · value)
+- **Metrics sheet** — all JSON metrics flattened into a styled table (handles nested dicts and lists)
 - **One sheet per plot** — PNG image embedded directly in the sheet
 
 ---
@@ -141,22 +151,21 @@ Produces one workbook per experiment folder under `output/`:
 
 All experiment classes inherit from `Experiment` (handles train/val/test splits):
 
-| Class | Type | GPU |
-|---|---|---|
-| `ClassificationExperiment` | RF, XGB, AdaBoost, SVC | XGB only |
-| `RegressionExperiment` | RF, XGB, AdaBoost, SVR | XGB only |
-| `ANNExperiment` | Keras MLP — MSE loss | Yes |
-| `PredictionIntervalEstimation` | Quantile ANN — pinball loss | Yes |
-| `TubeLossPredictionInterval` | Tube loss ANN | Yes |
-| `ConformalRegression` | MAPIE conformal | No (sklearn) |
-| `ConformalizedQuantileExperiment` | CQR + SVM split-conformal | ANN part only |
+| Class | Type | Tuning | GPU |
+|---|---|---|---|
+| `ClassificationExperiment` | RF, XGB, AdaBoost, SVC | `RandomizedSearchCV` | XGB only |
+| `RegressionExperiment` | RF, XGB, AdaBoost, SVR, LightGBM, CatBoost | `RandomizedSearchCV` | XGB, LGBM, CatBoost |
+| `ANNExperiment` | Keras MLP — MSE loss | — | Yes |
+| `PredictionIntervalEstimation` | Quantile ANN — pinball loss | — | Yes |
+| `TubeLossPredictionInterval` | Tube loss ANN | — | Yes |
+| `ConformalRegression` | MAPIE + 4 quantile estimators | `RandomizedSearchCV` per estimator | LGBM only |
+| `ConformalizedQuantileExperiment` | CQR + SVM split-conformal | — | ANN part only |
 
-**Performance optimisations applied:**
-- TF mixed precision `float16` — ~2× ANN training speed on RTX 4060
-- ANN default `batch_size=256` — better GPU utilisation
-- `RandomForest n_jobs=-1` — all CPU cores
-- `XGBRegressor(device='cuda')`
-- Quantile SVR gamma sweep parallelised via `joblib.Parallel(n_jobs=-1)`
+**ANN training settings:**
+- `batch_size=64` — 20 gradient steps per epoch (better convergence than 256)
+- `EarlyStopping(patience=50)` for `ANNExperiment`; `patience=35` for quantile/tube models
+- `ReduceLROnPlateau(factor=0.3, patience=10, min_lr=1e-7)` — aggressive LR decay
+- `mixed_float16` precision policy **removed** — float16 degraded regression accuracy on SM (%) target
 
 ---
 
@@ -179,25 +188,27 @@ DpRVI = q * (q + 3) / (q + 1) ** 2    # range [0, 1]
 
 ### Depolarization Rate
 ```python
-Depolarization_Rate = q   # same q as above — dimensionless linear ratio
+Depolarization_Rate = q   # same q — dimensionless linear ratio
 ```
 
----
+### RFDI — Radar Forest Degradation Index
+```python
+RFDI = (1 - q) / (1 + q)   # range [-1, 1]
+```
+High RFDI → co-pol dominates → soil/bare scattering. Low RFDI → cross-pol dominates → vegetation volume.
 
-## NDVI Impact (adding Sentinel-2 NDVI as 3rd feature)
-
-| Stage | Metric | EOS-04 | Sentinel-1 |
-|---|---|---|---|
-| Classical ML | R² | +0.14–0.15 | +0.12–0.13 |
-| Classical ML | MAE | −2.1 units | −1.2 units |
-| ANN | R² | +0.086–0.089 | +0.081–0.131 |
-| Quantile ANN PI | MPIW | −9 to −10 units | minimal |
-| Conformal GBR | MPIW | −6 to −8 units | −2 units |
+### RVI4S1 — Dual-pol Vegetation Index for Sentinel-1
+*Mandal et al. 2020*
+```python
+RVI4S1 = 4 * q / (1 + q)   # range [0, 1]
+```
+Increases with vegetation density. Complementary to DpRVI for linear/kernel models that cannot internally learn non-linear transforms of q.
 
 ---
 
 ## Data Notes
 
 - **Censored vs uncensored**: SM values at detection threshold (SM = 50) kept in `*_censored` notebooks, dropped in `*_uncensored`.
-- **Exploration notebooks regenerate CSVs**: Always run `exploration_eos` and `exploration_sentinel` first after any feature changes — they write the processed CSVs used by all downstream notebooks.
-- **Polarization values are in dB** (negative floats, e.g. −13.5, −19.4). DpRVI computation converts to linear internally.
+- **Exploration notebooks regenerate CSVs**: Always run `exploration_eos` and `exploration_sentinel` first after any feature changes — they write the 7-feature processed CSVs used by all downstream notebooks.
+- **Polarization values are in dB** (negative floats, e.g. −13.5, −19.4). DpRVI/RFDI/RVI4S1 computations convert to linear internally.
+- **xlsx raw data**: RFDI and RVI4S1 are pre-computed and stored alongside DpRVI in all sheets of both workbooks.

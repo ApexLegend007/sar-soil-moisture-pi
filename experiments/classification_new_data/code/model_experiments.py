@@ -184,20 +184,65 @@ class ClassificationExperiment(Experiment):
             print("Error: Training data is not available. Cannot run experiment.")
             return
 
-        models_to_run = {
-            'rf':  RandomForestClassifier(random_state=42, n_jobs=-1),
-            'xgb': XGBClassifier(random_state=42, eval_metric='mlogloss',
-                                  device='cuda', tree_method='hist', nthread=-1),
-            'ada': AdaBoostClassifier(random_state=42),
-            'svc': SVC(probability=True, random_state=42)
+        models_and_grids = {
+            'rf': (
+                RandomForestClassifier(random_state=42, n_jobs=-1),
+                {
+                    'n_estimators': [100, 200, 300, 500],
+                    'max_depth': [None, 5, 10, 20],
+                    'min_samples_split': [2, 5, 10],
+                    'min_samples_leaf': [1, 2, 4],
+                    'max_features': ['sqrt', 'log2'],
+                }
+            ),
+            'xgb': (
+                XGBClassifier(random_state=42, eval_metric='mlogloss',
+                              device='cuda', tree_method='hist', nthread=-1),
+                {
+                    'n_estimators': [100, 200, 300, 500],
+                    'max_depth': [3, 5, 7, 9],
+                    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+                    'subsample': [0.7, 0.8, 1.0],
+                    'colsample_bytree': [0.7, 0.8, 1.0],
+                    'reg_alpha': [0, 0.1, 0.5],
+                    'reg_lambda': [1, 1.5, 2],
+                }
+            ),
+            'ada': (
+                AdaBoostClassifier(random_state=42),
+                {
+                    'n_estimators': [50, 100, 200, 300],
+                    'learning_rate': [0.01, 0.05, 0.1, 0.5, 1.0],
+                }
+            ),
+            'svc': (
+                SVC(probability=True, random_state=42),
+                {
+                    'C': [0.1, 1, 10, 50, 100],
+                    'kernel': ['rbf', 'linear'],
+                    'gamma': ['scale', 'auto', 0.01, 0.1],
+                }
+            ),
         }
 
         os.makedirs(self.results_path, exist_ok=True)
 
-        for name, model in models_to_run.items():
+        for name, (base_model, param_grid) in models_and_grids.items():
             print(f"\n--- Running Model: {name.upper()} ---")
 
-            model.fit(self.X_train, self.y_train)
+            search = RandomizedSearchCV(
+                estimator=base_model,
+                param_distributions=param_grid,
+                n_iter=50,
+                cv=5,
+                n_jobs=-1,
+                random_state=42,
+                scoring='accuracy',
+                verbose=0,
+            )
+            search.fit(self.X_train, self.y_train)
+            model = search.best_estimator_
+            print(f"Best params: {search.best_params_}")
 
             model_results = {}
 
@@ -478,8 +523,8 @@ class ANNExperiment(Experiment):
             metrics=['mae']
         )
 
-        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=50, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=10, min_lr=1e-7)
         progress = EpochTqdm(total_epochs=epochs)
 
         # Train the model
@@ -697,8 +742,8 @@ class PredictionIntervalEstimation(Experiment):
         )
 
 
-        early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=35, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=10, min_lr=1e-7)
         progress = EpochTqdm(total_epochs=epochs, desc="Upper model")
         self.upper_model_history = self.upper_model.fit(
             self.X_train_scaled, self.y_train,
@@ -708,8 +753,8 @@ class PredictionIntervalEstimation(Experiment):
             verbose=verbose,
             callbacks=[progress, early_stopping, reduce_lr]
         )
-        early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=35, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=10, min_lr=1e-7)
         progress = EpochTqdm(total_epochs=epochs, desc="Lower model")
         self.lower_model_history = self.lower_model.fit(
             self.X_train_scaled, self.y_train,
@@ -866,20 +911,75 @@ class ConformalRegression:
                 f"  Original data rows: {total}"
             )
 
+    def _find_best_params(self, base_model, param_grid):
+        """Find best hyperparams via RandomizedSearchCV on training data (conf set stays clean)."""
+        search = RandomizedSearchCV(
+            estimator=base_model,
+            param_distributions=param_grid,
+            n_iter=40,
+            cv=5,
+            n_jobs=-1,
+            random_state=42,
+            scoring='neg_mean_squared_error',
+            verbose=0,
+        )
+        search.fit(self.X_train, self.y_train)
+        print(f"  Best params: {search.best_params_}")
+        return search.best_params_
+
     def run_experiment(self):
-        models = {
-            "QuantileRegressor": QuantileRegressor(),
-            "GradientBoostingRegressor": GradientBoostingRegressor(loss="quantile"),
-            "HistGradientBoostingRegressor": HistGradientBoostingRegressor(loss="quantile"),
-            "LGBMRegressor": LGBMRegressor(device='gpu', objective='quantile', alpha=0.5, verbose=-1, n_jobs=-1),
+        from sklearn.base import clone
+
+        model_configs = {
+            "QuantileRegressor": (
+                QuantileRegressor(solver='highs'),
+                {
+                    'alpha': [0.0, 0.001, 0.01, 0.1, 1.0],
+                }
+            ),
+            "GradientBoostingRegressor": (
+                GradientBoostingRegressor(loss="quantile", random_state=42),
+                {
+                    'n_estimators': [100, 200, 300],
+                    'max_depth': [3, 5, 7],
+                    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+                    'subsample': [0.7, 0.8, 1.0],
+                }
+            ),
+            "HistGradientBoostingRegressor": (
+                HistGradientBoostingRegressor(loss="quantile", random_state=42),
+                {
+                    'max_iter': [100, 200, 300],
+                    'max_depth': [3, 5, 7, None],
+                    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+                    'min_samples_leaf': [10, 20, 30],
+                }
+            ),
+            "LGBMRegressor": (
+                LGBMRegressor(device='gpu', objective='quantile', verbose=-1, n_jobs=-1, random_state=42),
+                {
+                    'n_estimators': [100, 200, 300, 500],
+                    'max_depth': [3, 5, 7, -1],
+                    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+                    'num_leaves': [31, 63, 127],
+                    'subsample': [0.7, 0.8, 1.0],
+                    'colsample_bytree': [0.7, 0.8, 1.0],
+                }
+            ),
         }
 
         results = {}
 
-        for model_string, model in models.items():
+        for model_string, (base_model, param_grid) in model_configs.items():
             print(f"==========Running {model_string}===========\n\n")
+            print(f"  Tuning {model_string}...")
+            best_params = self._find_best_params(base_model, param_grid)
+
+            # Create fresh unfitted clone with best params — MAPIE handles quantile fitting internally
+            tuned_model = clone(base_model).set_params(**best_params)
+
             regressor = ConformalizedQuantileRegressor(
-                estimator=model,
+                estimator=tuned_model,
                 confidence_level=0.95,
                 prefit=False
             )
@@ -893,7 +993,7 @@ class ConformalRegression:
             upper_preds = intervals[:, 1]
             self.plot_prediction_interval(lower_preds, upper_preds, model_string)
             results[model_string] = self.evaluate_model(self.y_test, lower_preds, upper_preds)
-        
+
         with open(self.results_path / f"{self.satellite}_metrics.json", "w") as f:
             json.dump(results, f, indent=4)
     
@@ -1042,7 +1142,7 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
             self.y_val, pred_cal, pred_test, alpha
         )
 
-    def run_ann_cqr(self, model_template, epochs=100, alpha=0.05):
+    def run_ann_cqr(self, model_template, epochs=250, alpha=0.05):
         print("\n--- Running ANN CQR ---")
         # 1. Train Quantile ANN (using parent class logic)
         # Returns raw quantile predictions (uncalibrated)
@@ -1052,7 +1152,7 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
             epochs=epochs,
             batch_size=64,
             verbose=0,
-            learning_rate=0.001
+            learning_rate=0.0005
         )
         
         # 2. Apply CQR
@@ -1060,7 +1160,7 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
             self.y_val, low_cal, high_cal, low_test, high_test, alpha
         )
 
-    def run_experiment(self, ann_model_template, epochs=100, alpha=0.05):
+    def run_experiment(self, ann_model_template, epochs=250, alpha=0.05):
         results = {}
         
         # 1. Run Models
@@ -1164,16 +1264,16 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
 
-    def run_ann_tuning_experiment(self, model_template, lower_taus=[0.01, 0.015, 0.02, 0.025, 0.03, 0.04], epochs=100):
+    def run_ann_tuning_experiment(self, model_template, lower_taus=[0.01, 0.015, 0.02, 0.025, 0.03, 0.04], epochs=250):
         """
-        Runs ANN QR and CQR for various (tau_lower, tau_upper) pairs 
+        Runs ANN QR and CQR for various (tau_lower, tau_upper) pairs
         where the difference is fixed at 0.95.
         """
         tuning_results = []
         alpha = 0.05 # Fixed target alpha
 
         print(f"\n=== Starting Tau Hyperparameter Tuning for {self.satellite} ===")
-        
+
         for lo in lower_taus:
             hi = round(lo + 0.95, 3) # Maintain 0.95 gap
             pair_name = f"Low:{lo} - High:{hi}"
@@ -1182,10 +1282,10 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
             # 1. Train Base Models
             # We use the updated train_model which accepts tau arguments
             pred_lo_test, pred_hi_test, pred_lo_val, pred_hi_val = self.train_model(
-                model_template, 
-                optimizer='adam', 
-                epochs=epochs, 
-                learning_rate=0.001,
+                model_template,
+                optimizer='adam',
+                epochs=epochs,
+                learning_rate=0.0005,
                 verbose=0,
                 tau_lower=lo,
                 tau_upper=hi
@@ -1280,8 +1380,8 @@ class TubeLossPredictionInterval(Experiment):
         self.model.compile(optimizer=optimizer, loss=self.confidence_loss)
 
         progress = EpochTqdm(total_epochs=num_epochs)
-        early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=35, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=10, min_lr=1e-7)
 
         self.history = self.model.fit(
             self.X_train_scaled, self.y_train,
