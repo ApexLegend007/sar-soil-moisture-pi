@@ -230,12 +230,15 @@ class ClassificationExperiment(Experiment):
         for name, (base_model, param_grid) in models_and_grids.items():
             print(f"\n--- Running Model: {name.upper()} ---")
 
+            _gpu_types = (XGBClassifier,)
+            search_n_jobs = 1 if isinstance(base_model, _gpu_types) else -1
+
             search = RandomizedSearchCV(
                 estimator=base_model,
                 param_distributions=param_grid,
                 n_iter=50,
                 cv=5,
-                n_jobs=-1,
+                n_jobs=search_n_jobs,
                 random_state=42,
                 scoring='accuracy',
                 verbose=0,
@@ -322,24 +325,30 @@ class RegressionExperiment(Experiment):
 
     def fit_grid_search(self, model, param_grid, scaled=False, model_name="Model"):
         print(f"=== Running {model_name} for {self.satellite} ===")
-        
+
         y_train = self.y_train
         y_test = self.y_test
 
         if scaled:
             X_train_data = self.X_train_scaled
             X_test_data = self.X_test_scaled
-            
+
         else:
             X_train_data = self.X_train
             X_test_data = self.X_test
+
+        # GPU-backed models (XGB/LGBM/CatBoost) cannot be forked into joblib workers —
+        # CUDA contexts are not inheritable. Use n_jobs=1 and let the model handle its
+        # own internal parallelism via nthread / n_jobs / task_type settings.
+        _gpu_types = (XGBRegressor, LGBMRegressor, CatBoostRegressor)
+        search_n_jobs = 1 if isinstance(model, _gpu_types) else -1
 
         grid_search = RandomizedSearchCV(
             estimator=model,
             param_distributions=param_grid,
             n_iter=50,
             cv=5,
-            n_jobs=-1,
+            n_jobs=search_n_jobs,
             verbose=0,
             random_state=42,
             scoring='neg_mean_absolute_error',
@@ -913,12 +922,16 @@ class ConformalRegression:
 
     def _find_best_params(self, base_model, param_grid):
         """Find best hyperparams via RandomizedSearchCV on training data (conf set stays clean)."""
+        # LGBMRegressor with device='gpu' cannot be forked into joblib workers
+        _gpu_types = (LGBMRegressor,)
+        search_n_jobs = 1 if isinstance(base_model, _gpu_types) else -1
+
         search = RandomizedSearchCV(
             estimator=base_model,
             param_distributions=param_grid,
             n_iter=40,
             cv=5,
-            n_jobs=-1,
+            n_jobs=search_n_jobs,
             random_state=42,
             scoring='neg_mean_squared_error',
             verbose=0,
