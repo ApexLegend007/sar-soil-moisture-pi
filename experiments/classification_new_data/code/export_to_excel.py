@@ -430,7 +430,11 @@ def _flatten(obj, prefix="") -> list[tuple]:
     if isinstance(obj, dict):
         for k, v in obj.items():
             label = f"{prefix} › {k}" if prefix else str(k)
-            rows.extend(_flatten(v, label) if isinstance(v, dict) else [(label, v)])
+            rows.extend(_flatten(v, label))
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            label = f"{prefix} [{i}]"
+            rows.extend(_flatten(item, label))
     else:
         rows.append((prefix, obj))
     return rows
