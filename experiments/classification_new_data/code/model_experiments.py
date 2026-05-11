@@ -468,18 +468,18 @@ class ANNExperiment(Experiment):
         self.y_val = self.y_val.reshape(-1, )
         self.y_val_scaled = self.y_val_scaled.reshape(-1, )
 
-    def train_model(self, model, optimizer='adam', epochs=200, batch_size=256, verbose=0):
+    def train_model(self, model, optimizer='adam', epochs=300, batch_size=64, verbose=0):
         self.model = model
-        
+
         # Compile the model
         self.model.compile(
             optimizer=optimizer,
             loss='mse',
             metrics=['mae']
         )
-        
-        early_stopping = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+
+        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
         progress = EpochTqdm(total_epochs=epochs)
 
         # Train the model
@@ -555,7 +555,7 @@ class ANNExperiment(Experiment):
         plt.savefig(plot_path / f"{self.satellite}_{model_params}.png", dpi=300, bbox_inches='tight')
         plt.close()
     
-    def run_experiment(self, model, optimizer='adam', epochs=200, batch_size=256, verbose=0, model_param_string=None):
+    def run_experiment(self, model, optimizer='adam', epochs=300, batch_size=64, verbose=0, model_param_string=None):
         # Train model
         y_pred, test_results, val_results = self.train_model(
             model, optimizer, epochs, batch_size, verbose
@@ -668,7 +668,7 @@ class PredictionIntervalEstimation(Experiment):
     def upper_quantile_loss(self, y_true, y_pred, tau=0.975):
         return self.pinball_loss(y_true, y_pred, tau=tau)
 
-    def train_model(self, model, learning_rate, optimizer='adam', epochs=200, batch_size=256, verbose=0, tau_lower=0.025, tau_upper=0.975):
+    def train_model(self, model, learning_rate, optimizer='adam', epochs=300, batch_size=64, verbose=0, tau_lower=0.025, tau_upper=0.975):
         self.upper_model = tf.keras.models.clone_model(model)
         self.lower_model = tf.keras.models.clone_model(model)
 
@@ -697,8 +697,8 @@ class PredictionIntervalEstimation(Experiment):
         )
 
 
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
         progress = EpochTqdm(total_epochs=epochs, desc="Upper model")
         self.upper_model_history = self.upper_model.fit(
             self.X_train_scaled, self.y_train,
@@ -708,8 +708,8 @@ class PredictionIntervalEstimation(Experiment):
             verbose=verbose,
             callbacks=[progress, early_stopping, reduce_lr]
         )
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
         progress = EpochTqdm(total_epochs=epochs, desc="Lower model")
         self.lower_model_history = self.lower_model.fit(
             self.X_train_scaled, self.y_train,
@@ -797,7 +797,7 @@ class PredictionIntervalEstimation(Experiment):
         plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png", dpi=300, bbox_inches='tight')
         plt.close()
 
-    def run_experiment(self, model, optimizer='adam', epochs=200, learning_rate=0.01, batch_size=256, verbose=0, model_param_string=None):
+    def run_experiment(self, model, optimizer='adam', epochs=300, learning_rate=0.01, batch_size=64, verbose=0, model_param_string=None):
         # Unpack all four returned prediction arrays
         y_preds_lower_test, y_preds_upper_test, y_preds_lower_val, y_preds_upper_val = self.train_model(
             model, optimizer=optimizer, epochs=epochs, batch_size=batch_size, verbose=verbose, learning_rate=learning_rate
@@ -1050,7 +1050,7 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
             model_template,
             optimizer='adam',
             epochs=epochs,
-            batch_size=256,
+            batch_size=64,
             verbose=0,
             learning_rate=0.001
         )
@@ -1275,13 +1275,13 @@ class TubeLossPredictionInterval(Experiment):
 
         return tf.reduce_mean(final_loss)
 
-    def train_model(self, model, optimizer, num_epochs=100, batch_size=256):
+    def train_model(self, model, optimizer, num_epochs=300, batch_size=64):
         self.model = tf.keras.models.clone_model(model)
         self.model.compile(optimizer=optimizer, loss=self.confidence_loss)
 
         progress = EpochTqdm(total_epochs=num_epochs)
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=8, min_lr=1e-7)
 
         self.history = self.model.fit(
             self.X_train_scaled, self.y_train,
@@ -1400,7 +1400,7 @@ class TubeLossPredictionInterval(Experiment):
         )
         fig.show()
 
-    def run_experiment(self, model, optimizer, epochs=200, batch_size=256,
+    def run_experiment(self, model, optimizer, epochs=300, batch_size=64,
                        model_param_string=None, plot_losses=False, return_preds=False,
                        save_fig=False, plot_interval=True):
         self.train_model(model=model, optimizer=optimizer, num_epochs=epochs, batch_size=batch_size)
