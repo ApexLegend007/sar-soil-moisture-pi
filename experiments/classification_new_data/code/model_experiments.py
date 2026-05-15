@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')  # non-interactive backend — must be set before any pyplot import
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder, TargetEncoder, MinMaxScaler
 from sklearn.metrics import accuracy_score, classification_report, mean_absolute_error, mean_squared_error, mean_absolute_percentage_error, root_mean_squared_error, r2_score
@@ -8,8 +11,6 @@ from sklearn.svm import SVC, SVR
 from sklearn.model_selection import GridSearchCV
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMRegressor
-from yellowbrick.regressor import prediction_error
-
 
 from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 import tensorflow as tf
@@ -18,15 +19,45 @@ from mapie.utils import train_conformalize_test_split
 from mapie.regression import ConformalizedQuantileRegressor
 from mapie.metrics.regression import regression_coverage_score, regression_mean_width_score
 
+import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import os
+from scipy.spatial.distance import cdist
+from cvxopt import matrix, solvers
 
 from constants import OUTPUT_PATH
 
 from tqdm import tqdm
+
+solvers.options['show_progress'] = False
+
+# ── IEEE publication-quality global style (Times New Roman via Nimbus Roman) ──
+matplotlib.rcParams.update({
+    'font.family':        'serif',
+    'font.serif':         ['Nimbus Roman', 'Times New Roman', 'DejaVu Serif'],
+    'font.weight':        'normal',
+    'font.size':          9,
+    'axes.titlesize':     10,
+    'axes.titleweight':   'normal',
+    'axes.labelsize':     9,
+    'axes.labelweight':   'normal',
+    'xtick.labelsize':    8,
+    'ytick.labelsize':    8,
+    'legend.fontsize':    8,
+    'legend.framealpha':  0.85,
+    'legend.edgecolor':   '0.7',
+    'grid.alpha':         0.3,
+    'grid.linestyle':     '--',
+    'grid.linewidth':     0.5,
+    'lines.linewidth':    1.2,
+    'figure.dpi':         150,
+    'savefig.dpi':        300,
+    'savefig.bbox':       'tight',
+    'savefig.pad_inches': 0.05,
+})
 
 class EpochTqdm(tf.keras.callbacks.Callback):
     def __init__(self, total_epochs, desc="Epochs"):
@@ -256,10 +287,7 @@ class RegressionExperiment(Experiment):
         
         y_preds = best_model.predict(X_test_data)
 
-        # self.make_plot(y_test, y_preds, model_name)
-        # self.plot_prediction_line(y_test, y_preds, model_name)
-        visualizer = prediction_error(best_model, X_train_data, y_train, X_test_data, y_test)
-        visualizer.show()
+        self.make_plot(y_test, y_preds, model_name)
         return self.make_result_dict(y_test, y_preds)
     
     def make_result_dict(self, y_true, y_preds):
@@ -277,31 +305,32 @@ class RegressionExperiment(Experiment):
         plot_dir = self.results_path / "plots"
         os.makedirs(plot_dir, exist_ok=True)
 
-        mae = mean_absolute_error(y_test, y_preds)
-        mape = mean_absolute_percentage_error(y_test, y_preds) * 100
-        
-        # Generate scatter plot with metrics
-        plt.figure(figsize=(14, 7))
-        indices = range(len(y_test))
-        
-        plt.scatter(indices, y_test, label='Actual', alpha=0.7, color='blue')
-        plt.scatter(indices, y_preds, label='Predicted', alpha=0.7, color='red')
-        
-        plt.xlabel('Sample Index', fontsize=16)
-        plt.ylabel('Values', fontsize=16)
-        plt.title(f'{self.satellite}: Actual vs Predicted Values - {model_name}', fontsize=16)
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        
-        # Add text box with metrics
-        metrics_text = f'MAE: {mae:.4f}\nMAPE: {mape:.2f}%'
-        plt.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
-                    verticalalignment='top', fontsize=16)
-        
-        # Save plot
-        plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_actual_vs_predicted.png")
-        # plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+        y_true_flat = np.asarray(y_test).flatten()
+        y_pred_flat = np.asarray(y_preds).flatten()
+        mae  = mean_absolute_error(y_true_flat, y_pred_flat)
+        rmse = root_mean_squared_error(y_true_flat, y_pred_flat)
+        r2   = r2_score(y_true_flat, y_pred_flat)
+
+        indices = np.arange(len(y_true_flat))
+
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.scatter(indices, y_true_flat, s=14, alpha=0.7, color='#1f77b4',
+                   edgecolors='none', label='Actual', zorder=3)
+        ax.scatter(indices, y_pred_flat, s=14, alpha=0.7, color='#d62728',
+                   edgecolors='none', label='Predicted', zorder=3)
+
+        metrics_text = f'MAE = {mae:.4f}\nRMSE = {rmse:.4f}\nR² = {r2:.4f}'
+        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel('Soil Moisture (%)')
+        ax.set_title(f'{self.satellite}: Actual vs. Predicted Values — {model_name}')
+        ax.legend(loc='lower right')
+        ax.grid(True)
+        plt.tight_layout()
+        plt.savefig(plot_dir / f"{self.satellite}_{model_name}_actual_vs_predicted.png")
         plt.close()
 
     def run_experiment(self):
@@ -501,67 +530,44 @@ class ANNExperiment(Experiment):
         plot_dir = self.results_path / "plots"
         os.makedirs(plot_dir, exist_ok=True)
 
-        mae = mean_absolute_error(y_test, y_preds)
-        mape = mean_absolute_percentage_error(y_test, y_preds) * 100
-        r2 = r2_score(y_test, y_preds)
+        y_t = np.asarray(y_test).flatten()
+        y_p = np.asarray(y_preds).flatten()
 
-        # Use a square figure to make the identity line 45 degrees visually
-        plt.figure(figsize=(10, 10))
-        
-        # 1. Scatter Plot (Actual vs Predicted)
-        plt.scatter(y_test, y_preds, alpha=0.6, edgecolors='k', linewidth=0.5, color='steelblue', label='Prediction')
-        
-        # Determine axis limits to keep plot square and unified
-        data_min = min(y_test.min(), y_preds.min())
-        data_max = max(y_test.max(), y_preds.max())
-        
-        # Add a small buffer (5%) so points aren't on the edge
-        buffer = (data_max - data_min) * 0.05
-        p_min = data_min - buffer
-        p_max = data_max + buffer
+        mae  = mean_absolute_error(y_t, y_p)
+        mse  = mean_squared_error(y_t, y_p)
+        r2   = r2_score(y_t, y_p)
+        bias = float(np.mean(y_p - y_t))
 
-        # 2. Identity Line (y = x) -> Perfect Prediction
-        plt.plot([p_min, p_max], [p_min, p_max], color='black', linestyle='--', lw=2, label='Identity')
+        indices = np.arange(len(y_t))
 
-        # 3. Best Fit Line (Linear Regression of the predictions)
-        # This helps you see if the model is systematically over/under predicting
-        try:
-            coeffs = np.polyfit(y_test.flatten(), y_preds.flatten(), 1)
-            poly_eqn = np.poly1d(coeffs)
-            x_range = np.linspace(p_min, p_max, 100)
-            plt.plot(x_range, poly_eqn(x_range), color='darkred', linestyle='-', lw=2, label='Best Fit')
-        except Exception as e:
-            print(f"Could not fit regression line for plot: {e}")
-        
-        plt.xlabel('Actual Values', fontsize=14)
-        plt.ylabel('Predicted Values', fontsize=14)
-        plt.title(f'{self.satellite}: Prediction Error - {model_name}', fontsize=16)
-        
-        # Metrics Text Box
-        metrics_text = f'MAE: {mae:.4f}\nMAPE: {mape:.2f}%\nR²: {r2:.4f}'
-        plt.annotate(metrics_text, xy=(0.05, 0.95), xycoords='axes fraction',
-                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8),
-                    verticalalignment='top', fontsize=14)
-        
-        # Enforce square axes
-        plt.xlim(p_min, p_max)
-        plt.ylim(p_min, p_max)
-        plt.gca().set_aspect('equal', adjustable='box')
-        
-        plt.legend(fontsize=12)
-        plt.grid(True, alpha=0.3)
-        
-        # Save plot
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.scatter(indices, y_t, s=14, alpha=0.7, color='#1f77b4',
+                   edgecolors='none', label='Actual (Test)', zorder=3)
+        ax.scatter(indices, y_p, s=14, alpha=0.7, color='#d62728',
+                   edgecolors='none', label='Predicted (Test)', zorder=3)
+
+        metrics_text = (f'Test MAE={mae:.4f}  MSE={mse:.2f}\n'
+                        f'R²={r2:.4f}  Bias={bias:+.4f}')
+        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel('Soil Moisture (%)')
+        ax.set_title(f'{self.satellite}: Actual vs. Predicted Values (Test Set)\nParams: {model_name}')
+        ax.legend(loc='lower right')
+        ax.grid(True)
+        plt.tight_layout()
         plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_prediction_error.png")
-        # plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-        plt.show()
+        plt.savefig(plot_path)
+        plt.close()
 
 
 
 class PredictionIntervalEstimation(Experiment):
-    def __init__(self, X, y, satellite, train_size=0.8, test_size=0.1, val_size=0.1, split_type='train-val-test', print_stats=None):
+    def __init__(self, X, y, satellite, train_size=0.8, test_size=0.1, val_size=0.1, split_type='train-val-test', print_stats=None, type='censored'):
         super().__init__(X, y, train_size, test_size, val_size, split_type, print_stats)
-        self.results_path = OUTPUT_PATH / "pi_estimation_censored"
+        self.results_path = OUTPUT_PATH / f"pi_estimation_{type}"
         self.satellite = satellite
 
         self.__scale_data()
@@ -676,10 +682,10 @@ class PredictionIntervalEstimation(Experiment):
         plt.legend()
         
         plt.tight_layout()
-        plt.show()
+        plt.close()
 
     def evaluate_model(self, y_true, y_pred_lower, y_pred_upper):
-        
+
         def picp(y_true_vals, y_pred_lower_vals, y_pred_upper_vals):
             """Prediction Interval Coverage Probability"""
             covered = np.sum((y_true_vals >= y_pred_lower_vals) & (y_true_vals <= y_pred_upper_vals))
@@ -695,41 +701,36 @@ class PredictionIntervalEstimation(Experiment):
         }
 
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, y_pred_lower_val, y_pred_upper_val, model_param_string):
-        indices = range(len(self.y_test))
+        test_m = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
+        val_m  = self.evaluate_model(self.y_val,  y_pred_lower_val,  y_pred_upper_val)
 
-        # Calculate metrics for both test and validation sets
-        test_eval_dict = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
-        val_eval_dict = self.evaluate_model(self.y_val, y_pred_lower_val, y_pred_upper_val)
+        idx    = np.arange(len(self.y_test))
+        y_true = self.y_test.flatten()
+        y_lo   = np.asarray(y_pred_lower_test).flatten()
+        y_hi   = np.asarray(y_pred_upper_test).flatten()
 
-        plt.figure(figsize=(14, 7))
-        plt.plot(indices, self.y_test, 'o', color='blue', label='Actual Soil Moisture (Test Set)')
-        plt.plot(indices, y_pred_lower_test, color='red', linestyle='--', label='Lower Bound')
-        plt.plot(indices, y_pred_upper_test, color='orange', linestyle='--', label='Upper Bound')
+        fig, ax = plt.subplots(figsize=(14, 6))
+        ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% Prediction Interval')
+        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
+        ax.scatter(idx, y_true, s=12, color='#1f77b4', alpha=0.8,
+                   edgecolors='none', label='Actual Soil Moisture (Test Set)', zorder=4)
 
-        plt.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Prediction Interval')
+        txt = (f"Test  | PICP: {test_m['PICP']*100:5.2f}% | MPIW: {test_m['MPIW']:.4f}\n"
+               f"Valid | PICP: {val_m['PICP']*100:5.2f}% | MPIW: {val_m['MPIW']:.4f}")
+        ax.annotate(txt, xy=(0.02, 0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
 
-        # Create a clean, aligned text box for both metrics
-        test_metrics = f"Test  | PICP: {test_eval_dict['PICP']*100:5.2f}% | MPIW: {test_eval_dict['MPIW']:.4f}"
-        val_metrics =  f"Valid | PICP: {val_eval_dict['PICP']*100:5.2f}% | MPIW: {val_eval_dict['MPIW']:.4f}"
-        metrics_text = f"{test_metrics}\n{val_metrics}"
-        
-        plt.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction', 
-                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8), 
-                    verticalalignment='top', fontsize=16,
-                    # Using a monospaced font for clean alignment
-                    fontname='monospace')
-        
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel('Soil Moisture (%)')
+        ax.set_title(f'{self.satellite}: {model_param_string}\nPrediction Interval for Soil Moisture')
+        ax.legend(loc='upper right', ncol=2)
+        ax.grid(True)
         plot_dir = self.results_path / "plots"
-        if not os.path.exists(plot_dir):
-            os.makedirs(plot_dir)
-
-        plt.xlabel('Sample Index', fontsize=16)
-        plt.ylabel('Soil Moisture', fontsize=16)
-        plt.title(f'{self.satellite}: {model_param_string}\nPrediction Interval for Soil Moisture', fontsize=16)
-        plt.legend(fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png", dpi=300)
-        # plt.show()
+        os.makedirs(plot_dir, exist_ok=True)
+        plt.tight_layout()
+        plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png")
         plt.close()
 
     def run_experiment(self, model, optimizer='adam', epochs=200, learning_rate=0.01, batch_size=32, verbose=0, model_param_string=None):
@@ -849,39 +850,34 @@ class ConformalRegression:
         }
 
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, model_param_string):
-        indices = range(len(self.y_test))
+        metrics = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
 
-        # Calculate metrics for both test and validation sets
-        test_eval_dict = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
+        idx   = np.arange(len(self.y_test))
+        y_lo  = np.asarray(y_pred_lower_test).flatten()
+        y_hi  = np.asarray(y_pred_upper_test).flatten()
 
-        plt.figure(figsize=(14, 7))
-        plt.plot(indices, self.y_test, 'o', color='blue', label='Actual Soil Moisture (Test Set)')
-        plt.plot(indices, y_pred_lower_test, color='red', linestyle='--', label='Lower Bound')
-        plt.plot(indices, y_pred_upper_test, color='orange', linestyle='--', label='Upper Bound')
+        fig, ax = plt.subplots(figsize=(14, 6))
+        ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% Prediction Interval')
+        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
+        ax.scatter(idx, self.y_test, s=12, color='#1f77b4', alpha=0.8,
+                   edgecolors='none', label='Actual Soil Moisture (Test Set)', zorder=4)
 
-        plt.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Prediction Interval')
+        metrics_text = f"PICP: {metrics['PICP']*100:.2f}%\nMPIW: {metrics['MPIW']:.4f}"
+        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
 
-        # Create a clean, aligned text box for both metrics
-        test_metrics = f"Test  | PICP: {test_eval_dict['PICP']*100:5.2f}% | MPIW: {test_eval_dict['MPIW']:.4f}"
-        metrics_text = f"{test_metrics}"
-        
-        plt.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction', 
-                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8), 
-                    verticalalignment='top', fontsize=16,
-                    # Using a monospaced font for clean alignment
-                    fontname='monospace')
-        
         plot_dir = self.results_path / "plots"
-        if not os.path.exists(plot_dir):
-            os.makedirs(plot_dir)
+        os.makedirs(plot_dir, exist_ok=True)
 
-        plt.xlabel('Sample Index', fontsize=16)
-        plt.ylabel('Soil Moisture', fontsize=16)
-        plt.title(f'{self.satellite}: {model_param_string}\nPrediction Interval for Soil Moisture', fontsize=16)
-        plt.legend(fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png", dpi=300)
-        # plt.show()
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel('Soil Moisture (%)')
+        ax.set_title(f'{self.satellite}: {model_param_string}\n95% Conformal Prediction Interval')
+        ax.legend(loc='upper right', ncol=2)
+        ax.grid(True)
+        plt.tight_layout()
+        plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png")
         plt.close()
 
 
@@ -1035,28 +1031,32 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
     
     # Override plot to be simpler since we iterate models
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, _, __, model_name):
-        indices = range(len(self.y_test))
         metrics = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
-        
-        plt.figure(figsize=(14, 7))
-        plt.plot(indices, self.y_test, 'o', color='blue', label='Actual', markersize=4, alpha=0.6)
-        plt.plot(indices, y_pred_lower_test, color='red', linestyle='--', label='Lower Bound', linewidth=1)
-        plt.plot(indices, y_pred_upper_test, color='orange', linestyle='--', label='Upper Bound', linewidth=1)
-        plt.fill_between(indices, y_pred_lower_test, y_pred_upper_test, color='gray', alpha=0.2, label='95% Confidence')
+
+        idx  = np.arange(len(self.y_test))
+        y_lo = np.asarray(y_pred_lower_test).flatten()
+        y_hi = np.asarray(y_pred_upper_test).flatten()
+
+        fig, ax = plt.subplots(figsize=(14, 6))
+        ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% Confidence')
+        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
+        ax.scatter(idx, self.y_test, s=12, color='#1f77b4', alpha=0.8,
+                   edgecolors='none', label='Actual', zorder=4)
 
         metrics_text = f"{model_name}\nPICP: {metrics['PICP']*100:.2f}%\nMPIW: {metrics['MPIW']:.4f}"
-        plt.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction', 
-                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8), 
-                    verticalalignment='top', fontsize=14, fontname='monospace')
-        
-        plt.xlabel('Sample Index')
-        plt.ylabel('Value')
-        plt.title(f'{self.satellite} - {model_name} Prediction Intervals')
-        plt.legend(loc='upper right')
-        plt.grid(True, alpha=0.3)
-        
+        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel('Soil Moisture (%)')
+        ax.set_title(f'{self.satellite} - {model_name} Prediction Intervals')
+        ax.legend(loc='upper right', ncol=2)
+        ax.grid(True)
+        plt.tight_layout()
         plot_path = self.results_path / f"{self.satellite}_{model_name}_plot.png"
-        plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+        plt.savefig(plot_path)
         plt.close()
     
 
@@ -1065,42 +1065,42 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         Generates an academic-style dual-axis plot comparing Raw vs CQR
         across different Tau configurations.
         """
+        x_labels = list(results_df['Tau_Pair'])
+
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-        
-        x = np.arange(len(results_df))
+        x     = np.arange(len(results_df))
         width = 0.35
-        
+
         # --- Plot 1: PICP (Coverage) ---
-        ax1.bar(x - width/2, results_df['Raw_PICP'] * 100, width, label='Raw QR', color='#4c72b0', alpha=0.8, edgecolor='black')
-        ax1.bar(x + width/2, results_df['CQR_PICP'] * 100, width, label='CQR', color='#dd8452', alpha=0.8, edgecolor='black')
-        
-        # Target Line (95%)
-        ax1.axhline(y=95, color='red', linestyle='--', linewidth=2, label='Target (95%)')
-        
-        ax1.set_ylabel('Coverage Probability (PICP) [%]', fontsize=14)
-        ax1.set_title('Coverage Consistency', fontsize=16)
+        ax1.bar(x - width/2, results_df['Raw_PICP'] * 100, width, label='Raw QR',
+                color='#4c72b0', alpha=0.85, edgecolor='black', linewidth=0.5)
+        ax1.bar(x + width/2, results_df['CQR_PICP'] * 100, width, label='CQR',
+                color='#dd8452', alpha=0.85, edgecolor='black', linewidth=0.5)
+        ax1.axhline(y=95, color='red', linestyle='--', linewidth=1.5, label='Target (95%)')
+        ax1.set_ylabel('Coverage Probability (PICP) [%]')
+        ax1.set_title('Coverage Consistency')
         ax1.set_xticks(x)
-        ax1.set_xticklabels(results_df['Tau_Pair'], rotation=90, ha='right', fontsize=12)
-        ax1.set_ylim(80, 100)  # Zoom in on high coverage area usually
-        ax1.legend(loc='lower right', fontsize=12)
-        ax1.grid(axis='y', linestyle='--', alpha=0.4)
+        ax1.set_xticklabels(x_labels, rotation=45, ha='right')
+        ax1.set_ylim(80, 100)
+        ax1.legend(loc='lower right')
+        ax1.grid(axis='y')
 
         # --- Plot 2: MPIW (Width) ---
-        ax2.bar(x - width/2, results_df['Raw_MPIW'], width, label='Raw QR', color='#4c72b0', alpha=0.8, edgecolor='black')
-        ax2.bar(x + width/2, results_df['CQR_MPIW'], width, label='CQR', color='#dd8452', alpha=0.8, edgecolor='black')
-        
-        ax2.set_ylabel('Mean Prediction Interval Width (MPIW)', fontsize=14)
-        ax2.set_title('Interval Efficiency (Lower is Better)', fontsize=16)
+        ax2.bar(x - width/2, results_df['Raw_MPIW'], width, label='Raw QR',
+                color='#4c72b0', alpha=0.85, edgecolor='black', linewidth=0.5)
+        ax2.bar(x + width/2, results_df['CQR_MPIW'], width, label='CQR',
+                color='#dd8452', alpha=0.85, edgecolor='black', linewidth=0.5)
+        ax2.set_ylabel('Mean Prediction Interval Width (MPIW)')
+        ax2.set_title('Interval Efficiency (Lower is Better)')
         ax2.set_xticks(x)
-        ax2.set_xticklabels(results_df['Tau_Pair'], rotation=90, ha='right', fontsize=12)
-        ax2.legend(loc='upper right', fontsize=12)
-        ax2.grid(axis='y', linestyle='--', alpha=0.4)
+        ax2.set_xticklabels(x_labels, rotation=45, ha='right')
+        ax2.legend(loc='upper right')
+        ax2.grid(axis='y')
 
-        plt.suptitle(f"{self.satellite}: Hyperparameter Tuning (Lower/Upper Loss)", fontsize=18)
+        fig.suptitle(f"{self.satellite}: Hyperparameter Tuning (Lower/Upper Loss)")
         plt.tight_layout()
-        
         plot_path = self.results_path / f"{self.satellite}_tau_tuning_comparison.png"
-        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        plt.savefig(plot_path)
         plt.close()
 
     def run_ann_tuning_experiment(self, model_template, lower_taus=[0.01, 0.015, 0.02, 0.025, 0.03, 0.04], epochs=100):
@@ -1160,5 +1160,129 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
 
         # Plot
         self.plot_tuning_comparison(df_results)
+
+
+class QuantileSVRExperiment(Experiment):
+    def __init__(self, X, y, satellite, train_size=0.8, test_size=0.1, val_size=0.1,
+                 split_type='train-val-test', print_stats=None, type='censored'):
+        super().__init__(X, y, train_size, test_size, val_size, split_type, print_stats)
+        self.satellite = satellite
+        self.results_path = OUTPUT_PATH / f"qsvr_pi_estimation_{type}"
+        os.makedirs(self.results_path, exist_ok=True)
+        self.__scale_data()
+
+    def __scale_data(self):
+        self.x_scaler = MinMaxScaler()
+        self.y_scaler = MinMaxScaler()
+
+        self.X_train_scaled = self.x_scaler.fit_transform(self.X_train)
+        self.X_val_scaled   = self.x_scaler.transform(self.X_val)
+        self.X_test_scaled  = self.x_scaler.transform(self.X_test)
+
+        self.y_train = self.y_train.reshape(-1, 1)
+        self.y_val   = self.y_val.reshape(-1, 1)
+        self.y_test  = self.y_test.reshape(-1, 1)
+
+        self.y_train_scaled = self.y_scaler.fit_transform(self.y_train)
+        self.y_val_scaled   = self.y_scaler.transform(self.y_val)
+        self.y_test_scaled  = self.y_scaler.transform(self.y_test)
+
+        self.y_train = self.y_train.ravel()
+        self.y_val   = self.y_val.ravel()
+        self.y_test  = self.y_test.ravel()
+        self.y_train_scaled = self.y_train_scaled.ravel()
+        self.y_val_scaled   = self.y_val_scaled.ravel()
+        self.y_test_scaled  = self.y_test_scaled.ravel()
+
+    @staticmethod
+    def _kernel(X, gamma, Y=None):
+        if Y is None:
+            Y = X
+        return np.exp(-gamma * cdist(X, Y, 'sqeuclidean'))
+
+    @staticmethod
+    def _fit(X, Y, gamma, C, tau, eps1=0.0):
+        n = X.shape[0]
+        H = QuantileSVRExperiment._kernel(X, gamma)
+        Hb = np.block([[H, -H], [-H, H]])
+        Y_col = Y.reshape(-1, 1)
+        c_vec = np.vstack([(1 - tau) * eps1 * np.ones((n, 1)) - Y_col,
+                            tau      * eps1 * np.ones((n, 1)) + Y_col]).flatten()
+        vub = np.concatenate([tau * C * np.ones(n), (1 - tau) * C * np.ones(n)])
+        I   = np.eye(2 * n)
+        sol = solvers.qp(matrix(Hb), matrix(c_vec),
+                         matrix(np.vstack([-I, I])),
+                         matrix(np.hstack([np.zeros(2 * n), vub])))
+        alpha = np.array(sol['x']).flatten()
+        beta  = alpha[:n] - alpha[n:]
+        return beta
+
+    @staticmethod
+    def _predict(X_train, X_pred, gamma, beta):
+        return QuantileSVRExperiment._kernel(X_pred, gamma, X_train).dot(beta)
+
+    def evaluate_model(self, y_true, y_pred_lower, y_pred_upper):
+        y_true  = y_true.flatten()
+        y_lower = y_pred_lower.flatten()
+        y_upper = y_pred_upper.flatten()
+        picp = float(np.mean((y_true >= y_lower) & (y_true <= y_upper)))
+        mpiw = float(np.mean(y_upper - y_lower))
+        return {'PICP': picp, 'MPIW': mpiw}
+
+    def plot_prediction_interval(self, lo_test, hi_test, lo_val, hi_val, label):
+        test_m = self.evaluate_model(self.y_test, lo_test, hi_test)
+        val_m  = self.evaluate_model(self.y_val,  lo_val,  hi_val)
+
+        idx  = np.arange(len(self.y_test))
+        y_lo = np.asarray(lo_test).flatten()
+        y_hi = np.asarray(hi_test).flatten()
+
+        fig, ax = plt.subplots(figsize=(14, 6))
+        ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% PI')
+        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
+        ax.scatter(idx, self.y_test, s=12, color='#1f77b4', alpha=0.8,
+                   edgecolors='none', label='Actual', zorder=4)
+
+        txt = (f"Test  | PICP: {test_m['PICP']*100:5.2f}% | MPIW: {test_m['MPIW']:.4f}\n"
+               f"Valid | PICP: {val_m['PICP']*100:5.2f}% | MPIW: {val_m['MPIW']:.4f}")
+        ax.annotate(txt, xy=(0.02, 0.98), xycoords='axes fraction',
+                    ha='left', va='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+
+        plot_dir = self.results_path / 'plots'
+        os.makedirs(plot_dir, exist_ok=True)
+        ax.set_xlabel('Sample Index')
+        ax.set_ylabel('Soil Moisture (%)')
+        ax.set_title(f'{self.satellite}: {label}\nQ-SVR Prediction Interval')
+        ax.legend(loc='upper right', ncol=2)
+        ax.grid(True)
+        plt.tight_layout()
+        plt.savefig(plot_dir / f"{self.satellite}_{label}.png")
+        plt.close()
+
+    def run_experiment(self, C, gamma, q_lower=0.025, q_upper=0.975):
+        label = f"C={C}_gamma={gamma}"
+        print(f"\n--- Q-SVR {self.satellite} | {label} ---")
+
+        t0 = time.time()
+        beta_lo = self._fit(self.X_train_scaled, self.y_train, gamma, C, q_lower)
+        beta_hi = self._fit(self.X_train_scaled, self.y_train, gamma, C, q_upper)
+        print(f"Training done in {time.time()-t0:.1f}s")
+
+        lo_val  = self._predict(self.X_train_scaled, self.X_val_scaled,  gamma, beta_lo)
+        hi_val  = self._predict(self.X_train_scaled, self.X_val_scaled,  gamma, beta_hi)
+        lo_test = self._predict(self.X_train_scaled, self.X_test_scaled, gamma, beta_lo)
+        hi_test = self._predict(self.X_train_scaled, self.X_test_scaled, gamma, beta_hi)
+
+        self.plot_prediction_interval(lo_test, hi_test, lo_val, hi_val, label)
+
+        results = {
+            "params": {"C": C, "gamma": gamma, "q_lower": q_lower, "q_upper": q_upper},
+            "val":    self.evaluate_model(self.y_val,  lo_val,  hi_val),
+            "test":   self.evaluate_model(self.y_test, lo_test, hi_test),
+        }
+        print(json.dumps({k: v for k, v in results.items() if k != 'params'}, indent=2))
+        return results
 
         return df_results
