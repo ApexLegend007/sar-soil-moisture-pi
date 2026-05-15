@@ -1,14 +1,20 @@
 {
     "QuantileRegressor": {
         "PICP": 0.9441340782122905,
-        "MPIW": 43.0
+        "MPIW": 43.0,
+        "NMPIW": 0.819,
+        "CWC": 100.6561
     },
     "GradientBoostingRegressor": {
         "PICP": 0.9217877094972067,
-        "MPIW": 35.47144438272423
+        "MPIW": 35.47144438272423,
+        "NMPIW": 0.6756,
+        "CWC": 180.8502
     },
     "HistGradientBoostingRegressor": {
         "PICP": 0.9162011173184358,
-        "MPIW": 36.25156733422583
+        "MPIW": 36.25156733422583,
+        "NMPIW": 0.6905,
+        "CWC": 232.7053
     }
 }

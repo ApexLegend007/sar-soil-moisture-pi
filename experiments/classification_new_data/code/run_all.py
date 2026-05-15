@@ -31,6 +31,8 @@ from model_experiments import (
     ConformalRegression,
     ConformalizedQuantileExperiment,
     QuantileSVRExperiment,
+    KFoldRegressionExperiment,
+    KFoldClassificationExperiment,
 )
 
 # ── reproducibility ──────────────────────────────────────────────────────────
@@ -197,6 +199,34 @@ def run_tau_tuning(X_eos, y_eos, X_sentinel, y_sentinel):
         exp.run_ann_tuning_experiment(model_template)
 
 
+def run_kfold_regression(X_eos, y_eos, X_sentinel, y_sentinel, mode: str):
+    print(f"\n{'='*60}")
+    print(f"  K-FOLD REGRESSION (k=5, stratified)  [{mode}]")
+    print(f"  Output → ml_experiment_{mode}_kfold/  (original results unchanged)")
+    print(f"{'='*60}")
+    for X, y, satellite in [
+        (X_eos,      y_eos,      "EOS-04"),
+        (X_sentinel, y_sentinel, "Sentinel-1"),
+    ]:
+        exp = KFoldRegressionExperiment(X, y, satellite=satellite, type=mode)
+        exp.run_experiment()
+
+
+def run_kfold_classification(X_eos, y_eos_label, X_sentinel, y_sentinel_label, mode: str):
+    print(f"\n{'='*60}")
+    print(f"  K-FOLD CLASSIFICATION (k=5, stratified)  [{mode}]")
+    print(f"  Output → classification_{mode}_kfold/  (original results unchanged)")
+    print(f"{'='*60}")
+    from constants import CLASS_LABELS
+    for X, y, satellite in [
+        (X_eos,      y_eos_label,      "EOS-04"),
+        (X_sentinel, y_sentinel_label, "Sentinel-1"),
+    ]:
+        exp = KFoldClassificationExperiment(X, y, satellite=satellite,
+                                            labels=CLASS_LABELS, type=mode)
+        exp.run_experiment()
+
+
 def run_qsvr(X_eos, y_eos, X_sentinel, y_sentinel, mode: str):
     print(f"\n{'='*60}")
     print(f"  QUANTILE SVR HP TUNING  [{mode}]")
@@ -253,6 +283,10 @@ def run_mode(mode: str, skip: list):
     if 'classification' not in skip:
         run_classification(X_eos_cls, y_eos_label, X_sentinel_cls, y_sentinel_label, mode)
 
+    if 'kfold' not in skip:
+        run_kfold_regression(X_eos, y_eos, X_sentinel, y_sentinel, mode)
+        run_kfold_classification(X_eos_cls, y_eos_label, X_sentinel_cls, y_sentinel_label, mode)
+
     if 'classical_ml' not in skip:
         run_classical_ml(X_eos, y_eos, X_sentinel, y_sentinel, mode)
 
@@ -284,7 +318,7 @@ def main():
     )
     parser.add_argument(
         '--skip', nargs='*', default=[],
-        choices=['classification', 'classical_ml', 'ann', 'pi', 'conformal', 'cqr', 'tau', 'qsvr'],
+        choices=['classification', 'classical_ml', 'ann', 'pi', 'conformal', 'cqr', 'tau', 'qsvr', 'kfold'],
         help="Experiment names to skip"
     )
     args = parser.parse_args()

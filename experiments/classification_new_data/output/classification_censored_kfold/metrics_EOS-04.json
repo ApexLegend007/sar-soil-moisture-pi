@@ -1,0 +1,58 @@
+{
+    "rf": {
+        "macro_f1": {
+            "mean": 0.3512,
+            "std": 0.0174
+        },
+        "accuracy": {
+            "mean": 0.3549,
+            "std": 0.0177
+        },
+        "kappa": {
+            "mean": 0.1397,
+            "std": 0.0237
+        }
+    },
+    "xgb": {
+        "macro_f1": {
+            "mean": 0.3413,
+            "std": 0.0127
+        },
+        "accuracy": {
+            "mean": 0.3431,
+            "std": 0.0133
+        },
+        "kappa": {
+            "mean": 0.124,
+            "std": 0.0178
+        }
+    },
+    "ada": {
+        "macro_f1": {
+            "mean": 0.3647,
+            "std": 0.0159
+        },
+        "accuracy": {
+            "mean": 0.3851,
+            "std": 0.0119
+        },
+        "kappa": {
+            "mean": 0.1799,
+            "std": 0.0161
+        }
+    },
+    "svc": {
+        "macro_f1": {
+            "mean": 0.375,
+            "std": 0.0252
+        },
+        "accuracy": {
+            "mean": 0.4025,
+            "std": 0.0253
+        },
+        "kappa": {
+            "mean": 0.2031,
+            "std": 0.034
+        }
+    }
+}

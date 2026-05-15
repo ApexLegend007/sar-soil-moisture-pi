@@ -1,14 +1,17 @@
 import matplotlib
 matplotlib.use('Agg')  # non-interactive backend — must be set before any pyplot import
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.preprocessing import OrdinalEncoder, TargetEncoder, MinMaxScaler
-from sklearn.metrics import accuracy_score, classification_report, mean_absolute_error, mean_squared_error, mean_absolute_percentage_error, root_mean_squared_error, r2_score
+from sklearn.metrics import (
+    accuracy_score, classification_report, cohen_kappa_score,
+    mean_absolute_error, mean_squared_error, mean_absolute_percentage_error,
+    root_mean_squared_error, r2_score,
+)
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
 from sklearn.linear_model import QuantileRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVC, SVR
-from sklearn.model_selection import GridSearchCV
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMRegressor
 
@@ -58,6 +61,79 @@ matplotlib.rcParams.update({
     'savefig.bbox':       'tight',
     'savefig.pad_inches': 0.05,
 })
+
+# ── Metric utilities (module-level, used across all experiment classes) ────────
+
+def smape(y_true, y_pred):
+    """Symmetric MAPE — bounded [0, 200%], safe near SM=0."""
+    y_true = np.asarray(y_true, dtype=float).flatten()
+    y_pred = np.asarray(y_pred, dtype=float).flatten()
+    denom = (np.abs(y_true) + np.abs(y_pred)) / 2.0
+    return float(np.mean(np.where(denom == 0, 0.0, np.abs(y_true - y_pred) / denom)) * 100)
+
+
+def nmpiw(mpiw_val, y_true):
+    """Normalized MPIW = MPIW / (max - min) of the test set. Target < 0.20."""
+    sm_range = float(np.max(y_true) - np.min(y_true))
+    return float(mpiw_val / sm_range) if sm_range > 0 else float('inf')
+
+
+def cwc(picp_val, mpiw_val, y_true, alpha=0.05, eta=50, gamma=1):
+    """Coverage Width-based Criterion (Khosravi et al.).
+    Penalises exponentially when PICP < (1-alpha). η=50, γ=1 are standard.
+    Lower is better."""
+    target = 1.0 - alpha
+    penalty = gamma * np.exp(-eta * (picp_val - target)) if picp_val < target else 0.0
+    return float(mpiw_val * (1.0 + penalty))
+
+
+def wilson_picp_ci(n_covered, n_total, z=1.96):
+    """Wilson score confidence interval for a proportion (PICP).
+    Returns (point_estimate, ci_lower, ci_upper)."""
+    if n_total == 0:
+        return 0.0, 0.0, 0.0
+    p = n_covered / n_total
+    denom = 1.0 + z ** 2 / n_total
+    centre = (p + z ** 2 / (2 * n_total)) / denom
+    half = (z / denom) * np.sqrt(p * (1 - p) / n_total + z ** 2 / (4 * n_total ** 2))
+    return float(p), float(max(0.0, centre - half)), float(min(1.0, centre + half))
+
+
+def compute_conditional_picp(y_true, y_lo, y_hi, n_bins=4):
+    """PICP per SM quartile with Wilson 95% CIs.
+    Reveals whether coverage holds conditionally, not just marginally.
+    Small bins (n≈35) have wide CIs — always check CI before concluding under-coverage."""
+    y_true = np.asarray(y_true).flatten()
+    y_lo   = np.asarray(y_lo).flatten()
+    y_hi   = np.asarray(y_hi).flatten()
+
+    edges = np.quantile(y_true, np.linspace(0, 1, n_bins + 1))
+    labels = [f'Q{i+1}_{name}' for i, name in enumerate(['Low', 'MedLow', 'MedHigh', 'High'])]
+
+    result = {}
+    for i, label in enumerate(labels):
+        lo_edge, hi_edge = edges[i], edges[i + 1]
+        mask = (y_true >= lo_edge) & (y_true <= hi_edge) if i == n_bins - 1 \
+               else (y_true >= lo_edge) & (y_true < hi_edge)
+        yt, yl, yh = y_true[mask], y_lo[mask], y_hi[mask]
+        n_total = len(yt)
+        if n_total == 0:
+            result[label] = {'n': 0, 'SM_range': [round(float(lo_edge), 2), round(float(hi_edge), 2)],
+                             'PICP': None, 'CI_lower': None, 'CI_upper': None}
+            continue
+        n_covered = int(np.sum((yt >= yl) & (yt <= yh)))
+        picp_val, ci_lo, ci_hi = wilson_picp_ci(n_covered, n_total)
+        result[label] = {
+            'n': n_total,
+            'SM_range': [round(float(lo_edge), 2), round(float(hi_edge), 2)],
+            'PICP':     round(picp_val, 4),
+            'CI_lower': round(ci_lo, 4),
+            'CI_upper': round(ci_hi, 4),
+        }
+    return result
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 
 class EpochTqdm(tf.keras.callbacks.Callback):
     def __init__(self, total_epochs, desc="Epochs"):
@@ -208,16 +284,22 @@ class ClassificationExperiment(Experiment):
                 
                 test_preds = model.predict(self.X_test)
                 test_accuracy = accuracy_score(self.y_test, test_preds)
+                kappa = cohen_kappa_score(self.y_test, test_preds)
 
                 # Get dict report for clean JSON saving
                 report_dict = classification_report(self.y_test, test_preds, zero_division=0, output_dict=True, target_names=self.labels)
-                
-                model_results['test_accuracy'] = test_accuracy
-                model_results['test_classification_report'] = report_dict
-                
-            self.results[name] = model_results['test_classification_report']
 
-            print(f"Test Acc - {model_results['test_accuracy']*100:.4f}%")
+                model_results['test_accuracy'] = test_accuracy
+                model_results['kappa'] = float(kappa)
+                model_results['test_classification_report'] = report_dict
+
+            # Store kappa alongside the classification report — additive, does not remove existing keys
+            self.results[name] = {
+                **model_results['test_classification_report'],
+                'kappa': model_results['kappa'],
+            }
+
+            print(f"Test Acc - {model_results['test_accuracy']*100:.4f}%  |  Kappa: {model_results['kappa']:.4f}")
 
         metrics_filename = os.path.join(self.results_path, f"metrics_{self.satellite_name}.json")
 
@@ -293,11 +375,12 @@ class RegressionExperiment(Experiment):
     def make_result_dict(self, y_true, y_preds):
         result_dict = {}
 
-        result_dict['MAE'] = round(mean_absolute_error(y_true, y_preds), 4)
-        result_dict['MSE'] = round(mean_squared_error(y_true, y_preds), 4)
-        result_dict['RMSE'] = round(root_mean_squared_error(y_true, y_preds), 4)
-        result_dict['R2'] =  round(r2_score(y_true, y_preds), 4)
-        result_dict['MAPE'] = round(mean_absolute_percentage_error(y_true, y_preds), 4)
+        result_dict['MAE']   = round(mean_absolute_error(y_true, y_preds), 4)
+        result_dict['MSE']   = round(mean_squared_error(y_true, y_preds), 4)
+        result_dict['RMSE']  = round(root_mean_squared_error(y_true, y_preds), 4)
+        result_dict['R2']    = round(r2_score(y_true, y_preds), 4)
+        result_dict['MAPE']  = round(mean_absolute_percentage_error(y_true, y_preds), 4)
+        result_dict['SMAPE'] = round(smape(y_true, y_preds), 4)   # safe near SM=0; kept alongside MAPE
 
         return result_dict
 
@@ -468,13 +551,14 @@ class ANNExperiment(Experiment):
 
     def evaluate_model(self, y_true, y_pred):
         mse = mean_squared_error(y_true, y_pred)
-        r2 = r2_score(y_true, y_pred)
+        r2  = r2_score(y_true, y_pred)
         mae = mean_absolute_error(y_true, y_pred)
 
         return {
-            "MAE": float(mae),
-            "MSE": float(mse),
-            "R2": float(r2)
+            "MAE":   float(mae),
+            "MSE":   float(mse),
+            "R2":    float(r2),
+            "SMAPE": round(smape(y_true, y_pred), 4),
         }
     
     def plot_line_comparison(self, test_results, val_results, test_preds, model_params):
@@ -694,19 +778,18 @@ class PredictionIntervalEstimation(Experiment):
         plt.close()
 
     def evaluate_model(self, y_true, y_pred_lower, y_pred_upper):
+        y_true = np.asarray(y_true).flatten()
+        y_lo   = np.asarray(y_pred_lower).flatten()
+        y_hi   = np.asarray(y_pred_upper).flatten()
 
-        def picp(y_true_vals, y_pred_lower_vals, y_pred_upper_vals):
-            """Prediction Interval Coverage Probability"""
-            covered = np.sum((y_true_vals >= y_pred_lower_vals) & (y_true_vals <= y_pred_upper_vals))
-            return covered / len(y_true_vals)
-
-        def mpiw(y_pred_lower_vals, y_pred_upper_vals):
-            """Mean Prediction Interval Width"""
-            return np.mean(y_pred_upper_vals - y_pred_lower_vals)
+        picp_val = float(np.mean((y_true >= y_lo) & (y_true <= y_hi)))
+        mpiw_val = float(np.mean(y_hi - y_lo))
 
         return {
-            'PICP': float(picp(y_true, y_pred_lower, y_pred_upper)),
-            'MPIW': float(mpiw(y_pred_lower, y_pred_upper))
+            'PICP':  picp_val,
+            'MPIW':  mpiw_val,
+            'NMPIW': round(nmpiw(mpiw_val, y_true), 4),
+            'CWC':   round(cwc(picp_val, mpiw_val, y_true), 4),
         }
 
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, y_pred_lower_val, y_pred_upper_val, model_param_string):
@@ -764,17 +847,18 @@ class PredictionIntervalEstimation(Experiment):
             model_param_string
         )
 
-        results_val = self.evaluate_model(self.y_val, y_preds_lower_val, y_preds_upper_val)
+        results_val  = self.evaluate_model(self.y_val,  y_preds_lower_val,  y_preds_upper_val)
         results_test = self.evaluate_model(self.y_test, y_preds_lower_test, y_preds_upper_test)
 
-        results = {
-            "val": results_val,
-            "test": results_test
-        }
-        print(f"{model_param_string}: {json.dumps(results, indent=4)}")
-        # with open(self.results_path / f"{self.satellite}_metrics.json", "w") as f:
-        #     json.dump(results, f, indent=4)
+        # Conditional PICP per SM quartile — saved separately, does not overwrite main metrics
+        cond = compute_conditional_picp(self.y_test, y_preds_lower_test, y_preds_upper_test)
+        cond_path = self.results_path / f"{self.satellite}_{model_param_string}_conditional_picp.json"
+        os.makedirs(self.results_path, exist_ok=True)
+        with open(cond_path, 'w') as f:
+            json.dump(cond, f, indent=4)
 
+        results = {"val": results_val, "test": results_test}
+        print(f"{model_param_string}: {json.dumps(results, indent=4)}")
         return results
 
 
@@ -845,24 +929,29 @@ class ConformalRegression:
             upper_preds = intervals[:, 1]
             self.plot_prediction_interval(lower_preds, upper_preds, model_string)
             results[model_string] = self.evaluate_model(self.y_test, lower_preds, upper_preds)
-        
+
+            # Conditional PICP per SM quartile — separate file, non-destructive
+            cond = compute_conditional_picp(self.y_test, lower_preds, upper_preds)
+            cond_path = self.results_path / f"{self.satellite}_{model_string}_conditional_picp.json"
+            with open(cond_path, 'w') as fc:
+                json.dump(cond, fc, indent=4)
+
         with open(self.results_path / f"{self.satellite}_metrics.json", "w") as f:
             json.dump(results, f, indent=4)
     
     def evaluate_model(self, y_true, y_pred_lower, y_pred_upper):
-        
-        def picp(y_true_vals, y_pred_lower_vals, y_pred_upper_vals):
-            """Prediction Interval Coverage Probability"""
-            covered = np.sum((y_true_vals >= y_pred_lower_vals) & (y_true_vals <= y_pred_upper_vals))
-            return covered / len(y_true_vals)
+        y_true = np.asarray(y_true).flatten()
+        y_lo   = np.asarray(y_pred_lower).flatten()
+        y_hi   = np.asarray(y_pred_upper).flatten()
 
-        def mpiw(y_pred_lower_vals, y_pred_upper_vals):
-            """Mean Prediction Interval Width"""
-            return np.mean(y_pred_upper_vals - y_pred_lower_vals)
+        picp_val = float(np.mean((y_true >= y_lo) & (y_true <= y_hi)))
+        mpiw_val = float(np.mean(y_hi - y_lo))
 
         return {
-            'PICP': float(picp(y_true, y_pred_lower, y_pred_upper)),
-            'MPIW': float(mpiw(y_pred_lower, y_pred_upper))
+            'PICP':  picp_val,
+            'MPIW':  mpiw_val,
+            'NMPIW': round(nmpiw(mpiw_val, y_true), 4),
+            'CWC':   round(cwc(picp_val, mpiw_val, y_true), 4),
         }
 
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, model_param_string):
@@ -1036,14 +1125,18 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         # 2. Evaluate and Plot
         for name, (y_low, y_high) in experiments.items():
             print(f"Evaluating {name}...")
-            
-            # Metrics
+
             metrics = self.evaluate_model(self.y_test, y_low, y_high)
             results[name] = metrics
-            
-            # Plot
-            self.plot_prediction_interval(y_low, y_high, [], [], name) # Passing empty Val lists as we focus on Test result
-            
+
+            self.plot_prediction_interval(y_low, y_high, [], [], name)
+
+            # Conditional PICP per SM quartile — separate file, non-destructive
+            cond = compute_conditional_picp(self.y_test, y_low, y_high)
+            cond_path = self.results_path / f"{self.satellite}_{name}_conditional_picp.json"
+            with open(cond_path, 'w') as fc:
+                json.dump(cond, fc, indent=4)
+
         # 3. Save Results
         metrics_path = self.results_path / f"{self.satellite}_conformal_metrics.json"
         with open(metrics_path, "w") as f:
@@ -1252,12 +1345,19 @@ class QuantileSVRExperiment(Experiment):
         return QuantileSVRExperiment._kernel(X_pred, gamma, X_train).dot(beta)
 
     def evaluate_model(self, y_true, y_pred_lower, y_pred_upper):
-        y_true  = y_true.flatten()
-        y_lower = y_pred_lower.flatten()
-        y_upper = y_pred_upper.flatten()
-        picp = float(np.mean((y_true >= y_lower) & (y_true <= y_upper)))
-        mpiw = float(np.mean(y_upper - y_lower))
-        return {'PICP': picp, 'MPIW': mpiw}
+        y_true = np.asarray(y_true).flatten()
+        y_lo   = np.asarray(y_pred_lower).flatten()
+        y_hi   = np.asarray(y_pred_upper).flatten()
+
+        picp_val = float(np.mean((y_true >= y_lo) & (y_true <= y_hi)))
+        mpiw_val = float(np.mean(y_hi - y_lo))
+
+        return {
+            'PICP':  picp_val,
+            'MPIW':  mpiw_val,
+            'NMPIW': round(nmpiw(mpiw_val, y_true), 4),
+            'CWC':   round(cwc(picp_val, mpiw_val, y_true), 4),
+        }
 
     def plot_prediction_interval(self, lo_test, hi_test, lo_val, hi_val, label):
         test_m = self.evaluate_model(self.y_test, lo_test, hi_test)
@@ -1322,4 +1422,143 @@ class QuantileSVRExperiment(Experiment):
         print(json.dumps({k: v for k, v in results.items() if k != 'params'}, indent=2))
         return results
 
-        return df_results
+
+# ── K-Fold cross-validation wrappers ──────────────────────────────────────────
+# Safe: write to separate *_kfold output dirs. Original single-split results
+# are untouched. k-fold is NOT applied to PI/conformal experiments (would
+# break the exchangeability assumption underlying coverage guarantees).
+
+class KFoldRegressionExperiment:
+    """5-fold stratified CV for classical ML regression.
+    Stratification uses SM quartile bins so each fold has representative
+    moisture range. Writes mean ± std metrics to ml_experiment_{type}_kfold/."""
+
+    def __init__(self, X, y, satellite, type='censored', k=5):
+        self.X         = np.asarray(X)
+        self.y         = np.asarray(y).flatten()
+        self.satellite = satellite
+        self.k         = k
+        self.results_path = OUTPUT_PATH / f"ml_experiment_{type}_kfold"
+        os.makedirs(self.results_path, exist_ok=True)
+
+        # Stratify by SM quartile bin so each fold covers full SM range
+        self._strata = pd.qcut(self.y, q=4, labels=False, duplicates='drop')
+
+    def _get_models(self):
+        return {
+            'RandomForest': RandomForestRegressor(n_estimators=200, max_depth=10,
+                                                   min_samples_split=5, random_state=42, n_jobs=-1),
+            'XGBoost':      XGBRegressor(n_estimators=200, max_depth=5, learning_rate=0.05,
+                                          subsample=0.8, random_state=42, objective='reg:squarederror'),
+            'AdaBoost':     AdaBoostRegressor(n_estimators=200, random_state=42),
+            'SVR':          SVR(kernel='rbf', C=10, gamma='scale'),
+        }
+
+    def run_experiment(self):
+        skf = StratifiedKFold(n_splits=self.k, shuffle=True, random_state=42)
+        models = self._get_models()
+
+        fold_metrics = {name: [] for name in models}
+
+        for fold, (train_idx, test_idx) in enumerate(skf.split(self.X, self._strata), 1):
+            X_tr, X_te = self.X[train_idx], self.X[test_idx]
+            y_tr, y_te = self.y[train_idx], self.y[test_idx]
+
+            scaler = MinMaxScaler()
+            X_tr_s = scaler.fit_transform(X_tr)
+            X_te_s = scaler.transform(X_te)
+
+            for name, model in models.items():
+                model.fit(X_tr_s, y_tr)
+                y_pred = model.predict(X_te_s)
+
+                fold_metrics[name].append({
+                    'MAE':   mean_absolute_error(y_te, y_pred),
+                    'RMSE':  root_mean_squared_error(y_te, y_pred),
+                    'R2':    r2_score(y_te, y_pred),
+                    'SMAPE': smape(y_te, y_pred),
+                })
+                print(f"  Fold {fold} | {name:15s} | R²={r2_score(y_te, y_pred):.3f} | MAE={mean_absolute_error(y_te, y_pred):.2f}")
+
+        # Aggregate: mean ± std across folds
+        summary = {}
+        for name, folds in fold_metrics.items():
+            for metric in ['MAE', 'RMSE', 'R2', 'SMAPE']:
+                vals = [f[metric] for f in folds]
+                summary.setdefault(name, {})[metric] = {
+                    'mean': round(float(np.mean(vals)), 4),
+                    'std':  round(float(np.std(vals)),  4),
+                }
+
+        out_path = self.results_path / f"metrics_{self.satellite}.json"
+        with open(out_path, 'w') as f:
+            json.dump(summary, f, indent=4)
+        print(f"\nK-Fold regression results saved → {out_path}")
+        return summary
+
+
+class KFoldClassificationExperiment:
+    """5-fold stratified CV for SM classification.
+    Stratification uses the class label directly (already discrete).
+    Writes mean ± std Macro F1 and Kappa to classification_{type}_kfold/."""
+
+    def __init__(self, X, y_label, satellite, labels, type='censored', k=5):
+        self.X         = np.asarray(X)
+        self.satellite = satellite
+        self.labels    = labels
+        self.k         = k
+        self.results_path = OUTPUT_PATH / f"classification_{type}_kfold"
+        os.makedirs(self.results_path, exist_ok=True)
+
+        # Encode labels to integers for StratifiedKFold
+        enc = OrdinalEncoder(categories=[labels])
+        self.y = enc.fit_transform(np.asarray(y_label)).flatten().astype(int)
+
+    def _get_models(self):
+        return {
+            'rf':  RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1),
+            'xgb': XGBClassifier(n_estimators=200, random_state=42, eval_metric='mlogloss'),
+            'ada': AdaBoostClassifier(n_estimators=200, random_state=42),
+            'svc': SVC(kernel='rbf', probability=True, random_state=42),
+        }
+
+    def run_experiment(self):
+        skf    = StratifiedKFold(n_splits=self.k, shuffle=True, random_state=42)
+        models = self._get_models()
+
+        fold_metrics = {name: [] for name in models}
+
+        for fold, (train_idx, test_idx) in enumerate(skf.split(self.X, self.y), 1):
+            X_tr, X_te = self.X[train_idx], self.X[test_idx]
+            y_tr, y_te = self.y[train_idx], self.y[test_idx]
+
+            for name, model in models.items():
+                model.fit(X_tr, y_tr)
+                y_pred = model.predict(X_te)
+
+                report = classification_report(y_te, y_pred, zero_division=0,
+                                               output_dict=True, target_names=self.labels)
+                kappa = cohen_kappa_score(y_te, y_pred)
+
+                fold_metrics[name].append({
+                    'macro_f1': report['macro avg']['f1-score'],
+                    'accuracy': report['accuracy'],
+                    'kappa':    kappa,
+                })
+                print(f"  Fold {fold} | {name:4s} | Macro F1={report['macro avg']['f1-score']:.3f} | Kappa={kappa:.3f}")
+
+        # Aggregate
+        summary = {}
+        for name, folds in fold_metrics.items():
+            for metric in ['macro_f1', 'accuracy', 'kappa']:
+                vals = [f[metric] for f in folds]
+                summary.setdefault(name, {})[metric] = {
+                    'mean': round(float(np.mean(vals)), 4),
+                    'std':  round(float(np.std(vals)),  4),
+                }
+
+        out_path = self.results_path / f"metrics_{self.satellite}.json"
+        with open(out_path, 'w') as f:
+            json.dump(summary, f, indent=4)
+        print(f"\nK-Fold classification results saved → {out_path}")
+        return summary

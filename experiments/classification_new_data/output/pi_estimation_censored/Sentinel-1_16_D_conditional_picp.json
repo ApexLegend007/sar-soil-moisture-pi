@@ -1,0 +1,42 @@
+{
+    "Q1_Low": {
+        "n": 39,
+        "SM_range": [
+            1.2,
+            10.9
+        ],
+        "PICP": 0.7949,
+        "CI_lower": 0.6447,
+        "CI_upper": 0.8922
+    },
+    "Q2_MedLow": {
+        "n": 40,
+        "SM_range": [
+            10.9,
+            21.05
+        ],
+        "PICP": 1.0,
+        "CI_lower": 0.9124,
+        "CI_upper": 1.0
+    },
+    "Q3_MedHigh": {
+        "n": 39,
+        "SM_range": [
+            21.05,
+            35.18
+        ],
+        "PICP": 1.0,
+        "CI_lower": 0.9103,
+        "CI_upper": 1.0
+    },
+    "Q4_High": {
+        "n": 40,
+        "SM_range": [
+            35.18,
+            50.0
+        ],
+        "PICP": 0.8,
+        "CI_lower": 0.6524,
+        "CI_upper": 0.895
+    }
+}
