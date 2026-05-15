@@ -314,22 +314,27 @@ class RegressionExperiment(Experiment):
         indices = np.arange(len(y_true_flat))
 
         fig, ax = plt.subplots(figsize=(12, 5))
+        fig.subplots_adjust(top=0.80, bottom=0.12)
         ax.scatter(indices, y_true_flat, s=14, alpha=0.7, color='#1f77b4',
                    edgecolors='none', label='Actual', zorder=3)
         ax.scatter(indices, y_pred_flat, s=14, alpha=0.7, color='#d62728',
                    edgecolors='none', label='Predicted', zorder=3)
 
-        metrics_text = f'MAE = {mae:.4f}\nRMSE = {rmse:.4f}\nR² = {r2:.4f}'
-        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
-
+        ax.set_xlim(left=0, right=len(indices))
+        ax.set_ylim(bottom=0)
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
-        ax.set_title(f'{self.satellite}: Actual vs. Predicted Values — {model_name}')
-        ax.legend(loc='lower right')
+        ax.set_title(f'{self.satellite}: Actual vs. Predicted Values — {model_name}', pad=50)
         ax.grid(True)
-        plt.tight_layout()
+
+        ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), ncol=2,
+                  borderaxespad=0, frameon=True)
+
+        metrics_text = f'MAE = {mae:.4f}   RMSE = {rmse:.4f}   R² = {r2:.4f}'
+        ax.annotate(metrics_text, xy=(0.99, 1.02), xycoords='axes fraction',
+                    ha='right', va='bottom', fontfamily='monospace', clip_on=False,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+
         plt.savefig(plot_dir / f"{self.satellite}_{model_name}_actual_vs_predicted.png")
         plt.close()
 
@@ -541,23 +546,27 @@ class ANNExperiment(Experiment):
         indices = np.arange(len(y_t))
 
         fig, ax = plt.subplots(figsize=(12, 5))
+        fig.subplots_adjust(top=0.80, bottom=0.12)
         ax.scatter(indices, y_t, s=14, alpha=0.7, color='#1f77b4',
                    edgecolors='none', label='Actual (Test)', zorder=3)
         ax.scatter(indices, y_p, s=14, alpha=0.7, color='#d62728',
                    edgecolors='none', label='Predicted (Test)', zorder=3)
 
-        metrics_text = (f'Test MAE={mae:.4f}  MSE={mse:.2f}\n'
-                        f'R²={r2:.4f}  Bias={bias:+.4f}')
-        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
-
+        ax.set_xlim(left=0, right=len(indices))
+        ax.set_ylim(bottom=0)
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
-        ax.set_title(f'{self.satellite}: Actual vs. Predicted Values (Test Set)\nParams: {model_name}')
-        ax.legend(loc='lower right')
+        ax.set_title(f'{self.satellite}: Actual vs. Predicted Values (Test Set)\nParams: {model_name}', pad=50)
         ax.grid(True)
-        plt.tight_layout()
+
+        ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), ncol=2,
+                  borderaxespad=0, frameon=True)
+
+        metrics_text = f'MAE={mae:.4f}   MSE={mse:.2f}   R²={r2:.4f}   Bias={bias:+.4f}'
+        ax.annotate(metrics_text, xy=(0.99, 1.02), xycoords='axes fraction',
+                    ha='right', va='bottom', fontfamily='monospace', clip_on=False,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+
         plot_path = os.path.join(plot_dir, f"{self.satellite}_{model_name}_prediction_error.png")
         plt.savefig(plot_path)
         plt.close()
@@ -704,32 +713,39 @@ class PredictionIntervalEstimation(Experiment):
         test_m = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
         val_m  = self.evaluate_model(self.y_val,  y_pred_lower_val,  y_pred_upper_val)
 
-        idx    = np.arange(len(self.y_test))
+        idx   = np.arange(len(self.y_test))
         y_true = self.y_test.flatten()
-        y_lo   = np.asarray(y_pred_lower_test).flatten()
-        y_hi   = np.asarray(y_pred_upper_test).flatten()
+        y_lo  = np.asarray(y_pred_lower_test).flatten()
+        y_hi  = np.asarray(y_pred_upper_test).flatten()
 
-        fig, ax = plt.subplots(figsize=(14, 6))
+        fig, ax = plt.subplots(figsize=(14, 7))
+        fig.subplots_adjust(top=0.78, bottom=0.10)
+
         ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% Prediction Interval')
-        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
-        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
-        ax.scatter(idx, y_true, s=12, color='#1f77b4', alpha=0.8,
+        ax.plot(idx, y_lo, 'r--', lw=1.2, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.2, label='Upper Bound')
+        ax.scatter(idx, y_true, s=20, color='#1f77b4', alpha=0.85,
                    edgecolors='none', label='Actual Soil Moisture (Test Set)', zorder=4)
 
-        txt = (f"Test  | PICP: {test_m['PICP']*100:5.2f}% | MPIW: {test_m['MPIW']:.4f}\n"
-               f"Valid | PICP: {val_m['PICP']*100:5.2f}% | MPIW: {val_m['MPIW']:.4f}")
-        ax.annotate(txt, xy=(0.02, 0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
-
+        ax.set_xlim(left=0, right=len(idx))
+        ax.set_ylim(bottom=0)
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
-        ax.set_title(f'{self.satellite}: {model_param_string}\nPrediction Interval for Soil Moisture')
-        ax.legend(loc='upper right', ncol=2)
+        ax.set_title(f'{self.satellite}: {model_param_string}\nPrediction Interval for Soil Moisture', pad=60)
         ax.grid(True)
+
+        # legend above axes, left side
+        ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), ncol=4,
+                  borderaxespad=0, fontsize=10, frameon=True)
+        # metrics above axes, right side
+        txt = (f"Test  | PICP: {test_m['PICP']*100:5.2f}% | MPIW: {test_m['MPIW']:.4f}\n"
+               f"Valid | PICP: {val_m['PICP']*100:5.2f}% | MPIW: {val_m['MPIW']:.4f}")
+        ax.annotate(txt, xy=(0.99, 1.02), xycoords='axes fraction',
+                    ha='right', va='bottom', fontsize=11, fontfamily='monospace', clip_on=False,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.5', alpha=0.9))
+
         plot_dir = self.results_path / "plots"
         os.makedirs(plot_dir, exist_ok=True)
-        plt.tight_layout()
         plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png")
         plt.close()
 
@@ -852,31 +868,38 @@ class ConformalRegression:
     def plot_prediction_interval(self, y_pred_lower_test, y_pred_upper_test, model_param_string):
         metrics = self.evaluate_model(self.y_test, y_pred_lower_test, y_pred_upper_test)
 
-        idx   = np.arange(len(self.y_test))
-        y_lo  = np.asarray(y_pred_lower_test).flatten()
-        y_hi  = np.asarray(y_pred_upper_test).flatten()
+        idx  = np.arange(len(self.y_test))
+        y_lo = np.asarray(y_pred_lower_test).flatten()
+        y_hi = np.asarray(y_pred_upper_test).flatten()
+        y_top = max(self.y_test.max(), y_hi.max())
 
-        fig, ax = plt.subplots(figsize=(14, 6))
+        fig, ax = plt.subplots(figsize=(14, 7))
+        fig.subplots_adjust(top=0.78, bottom=0.10)
         ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% Prediction Interval')
-        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
-        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
-        ax.scatter(idx, self.y_test, s=12, color='#1f77b4', alpha=0.8,
+        ax.plot(idx, y_lo, 'r--', lw=1.2, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.2, label='Upper Bound')
+        ax.scatter(idx, self.y_test, s=20, color='#1f77b4', alpha=0.85,
                    edgecolors='none', label='Actual Soil Moisture (Test Set)', zorder=4)
 
-        metrics_text = f"PICP: {metrics['PICP']*100:.2f}%\nMPIW: {metrics['MPIW']:.4f}"
-        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+        ax.set_xlim(left=0, right=len(idx))
+        ax.set_ylim(bottom=0)
 
         plot_dir = self.results_path / "plots"
         os.makedirs(plot_dir, exist_ok=True)
 
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
-        ax.set_title(f'{self.satellite}: {model_param_string}\n95% Conformal Prediction Interval')
-        ax.legend(loc='upper right', ncol=2)
+        ax.set_title(f'{self.satellite}: {model_param_string}\n95% Conformal Prediction Interval', pad=60)
         ax.grid(True)
-        plt.tight_layout()
+
+        ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), ncol=4,
+                  borderaxespad=0, fontsize=10, frameon=True)
+
+        metrics_text = f"PICP: {metrics['PICP']*100:.2f}%   MPIW: {metrics['MPIW']:.4f}"
+        ax.annotate(metrics_text, xy=(0.99, 1.02), xycoords='axes fraction',
+                    ha='right', va='bottom', fontsize=11, fontfamily='monospace', clip_on=False,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.5', alpha=0.9))
+
         plt.savefig(f"{plot_dir}/{self.satellite}_{model_param_string}.png")
         plt.close()
 
@@ -1036,25 +1059,32 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         idx  = np.arange(len(self.y_test))
         y_lo = np.asarray(y_pred_lower_test).flatten()
         y_hi = np.asarray(y_pred_upper_test).flatten()
+        y_top = max(self.y_test.max(), y_hi.max())
 
-        fig, ax = plt.subplots(figsize=(14, 6))
+        fig, ax = plt.subplots(figsize=(14, 7))
+        fig.subplots_adjust(top=0.78, bottom=0.10)
         ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% Confidence')
-        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
-        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
-        ax.scatter(idx, self.y_test, s=12, color='#1f77b4', alpha=0.8,
+        ax.plot(idx, y_lo, 'r--', lw=1.2, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.2, label='Upper Bound')
+        ax.scatter(idx, self.y_test, s=20, color='#1f77b4', alpha=0.85,
                    edgecolors='none', label='Actual', zorder=4)
 
-        metrics_text = f"{model_name}\nPICP: {metrics['PICP']*100:.2f}%\nMPIW: {metrics['MPIW']:.4f}"
-        ax.annotate(metrics_text, xy=(0.02, 0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+        ax.set_xlim(left=0, right=len(idx))
+        ax.set_ylim(bottom=0)
 
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
-        ax.set_title(f'{self.satellite} - {model_name} Prediction Intervals')
-        ax.legend(loc='upper right', ncol=2)
+        ax.set_title(f'{self.satellite} — {model_name} Prediction Intervals', pad=60)
         ax.grid(True)
-        plt.tight_layout()
+
+        ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), ncol=4,
+                  borderaxespad=0, fontsize=10, frameon=True)
+
+        metrics_text = f"PICP: {metrics['PICP']*100:.2f}%   MPIW: {metrics['MPIW']:.4f}"
+        ax.annotate(metrics_text, xy=(0.99, 1.02), xycoords='axes fraction',
+                    ha='right', va='bottom', fontsize=11, fontfamily='monospace', clip_on=False,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.5', alpha=0.9))
+
         plot_path = self.results_path / f"{self.satellite}_{model_name}_plot.png"
         plt.savefig(plot_path)
         plt.close()
@@ -1236,28 +1266,35 @@ class QuantileSVRExperiment(Experiment):
         idx  = np.arange(len(self.y_test))
         y_lo = np.asarray(lo_test).flatten()
         y_hi = np.asarray(hi_test).flatten()
+        y_top = max(self.y_test.max(), y_hi.max())
 
-        fig, ax = plt.subplots(figsize=(14, 6))
+        fig, ax = plt.subplots(figsize=(14, 7))
+        fig.subplots_adjust(top=0.78, bottom=0.10)
         ax.fill_between(idx, y_lo, y_hi, color='gray', alpha=0.2, label='95% PI')
-        ax.plot(idx, y_lo, 'r--', lw=1.0, label='Lower Bound')
-        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.0, label='Upper Bound')
-        ax.scatter(idx, self.y_test, s=12, color='#1f77b4', alpha=0.8,
+        ax.plot(idx, y_lo, 'r--', lw=1.2, label='Lower Bound')
+        ax.plot(idx, y_hi, color='orange', linestyle='--', lw=1.2, label='Upper Bound')
+        ax.scatter(idx, self.y_test, s=20, color='#1f77b4', alpha=0.85,
                    edgecolors='none', label='Actual', zorder=4)
 
-        txt = (f"Test  | PICP: {test_m['PICP']*100:5.2f}% | MPIW: {test_m['MPIW']:.4f}\n"
-               f"Valid | PICP: {val_m['PICP']*100:5.2f}% | MPIW: {val_m['MPIW']:.4f}")
-        ax.annotate(txt, xy=(0.02, 0.98), xycoords='axes fraction',
-                    ha='left', va='top', fontfamily='monospace',
-                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.7', alpha=0.9))
+        ax.set_xlim(left=0, right=len(idx))
+        ax.set_ylim(bottom=0)
 
         plot_dir = self.results_path / 'plots'
         os.makedirs(plot_dir, exist_ok=True)
         ax.set_xlabel('Sample Index')
         ax.set_ylabel('Soil Moisture (%)')
-        ax.set_title(f'{self.satellite}: {label}\nQ-SVR Prediction Interval')
-        ax.legend(loc='upper right', ncol=2)
+        ax.set_title(f'{self.satellite}: {label}\nQ-SVR Prediction Interval', pad=60)
         ax.grid(True)
-        plt.tight_layout()
+
+        ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), ncol=4,
+                  borderaxespad=0, fontsize=10, frameon=True)
+
+        txt = (f"Test  | PICP: {test_m['PICP']*100:5.2f}% | MPIW: {test_m['MPIW']:.4f}\n"
+               f"Valid | PICP: {val_m['PICP']*100:5.2f}% | MPIW: {val_m['MPIW']:.4f}")
+        ax.annotate(txt, xy=(0.99, 1.02), xycoords='axes fraction',
+                    ha='right', va='bottom', fontsize=11, fontfamily='monospace', clip_on=False,
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', edgecolor='0.5', alpha=0.9))
+
         plt.savefig(plot_dir / f"{self.satellite}_{label}.png")
         plt.close()
 
