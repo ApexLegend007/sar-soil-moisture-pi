@@ -265,7 +265,7 @@ Quantile SVR (95% quantile) evaluated across 31 gamma values from 2^−15 to 2^+
 | SVR | 0.6112 | 10.217 | 0.4536 | 11.084 |
 | **Best** | **RF: 0.6475** | | **RF: 0.4749** | |
 
-> Sentinel-1 scores are lower than EOS-04 across all models. VH-pol in agricultural C-band is less sensitive to topsoil SM than HH-pol, and NDVI (r≈0.60 with VH-pol) introduces collinearity that destabilizes tree splits on the smaller dataset.
+> Sentinel-1 scores are lower than EOS-04 across all models. VH-pol in agricultural C-band is less sensitive to topsoil SM than HH-pol. The apparent R² decline vs the pre-NDVI baseline (0.544→0.475 for RF) is **not caused by NDVI collinearity** — a controlled ablation removing NDVI from Sentinel-1 features produced a change of only +0.004 R² for RF and made AdaBoost worse (−0.053). The true cause is a dataset composition change when the NDVI pipeline was introduced: `sentinel-1-enhanced.csv` (1821 rows) was rebuilt as `sentinel-1-enhanced-ndvi.csv` (1816 rows) via a pol-value join that altered row ordering and train/test split boundaries. The current results (7 features including NDVI) are the authoritative numbers for this dataset.
 
 ### Phase 2 — 4-Class Classification
 
@@ -443,7 +443,7 @@ All results comparing 6-feature baseline (commit `46063be`) against 7-feature ND
 | SVR | 0.569 | **0.611** | +0.042 | **0.516** | 0.454 | −0.062 |
 
 > EOS-04: all 4 models improved. NDVI adds orthogonal surface condition context not captured by HH/HV alone.
-> Sentinel-1: all 4 models declined. VH-pol already encodes vegetation structure; adding correlated NDVI (r≈0.60) hurts tree splits on 1816 samples.
+> Sentinel-1: all 4 models show lower R² vs the pre-NDVI baseline. This is **not caused by NDVI collinearity** — a controlled ablation removing NDVI from Sentinel-1 features changed RF R² by only +0.004 and made AdaBoost worse (−0.053). Root cause: the NDVI pipeline rebuilt the dataset (1821→1816 rows, new pol-value merge) changing train/test split composition. The 7-feature results are authoritative for the current dataset.
 
 ### Coverage Threshold Crossings (PICP ≥ 0.95)
 
