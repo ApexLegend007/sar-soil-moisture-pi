@@ -9,12 +9,12 @@
         "crossing_rate": 0.0
     },
     "ANN_Split_Conformal": {
-        "PICP": 0.936585,
-        "MPIW": 36.219728
+        "PICP": 0.931707,
+        "MPIW": 36.733376
     },
     "ANN_CQR": {
-        "PICP": 0.921951,
-        "MPIW": 39.042427,
+        "PICP": 0.917073,
+        "MPIW": 41.000985,
         "crossing_rate": 0.0
     }
 }
