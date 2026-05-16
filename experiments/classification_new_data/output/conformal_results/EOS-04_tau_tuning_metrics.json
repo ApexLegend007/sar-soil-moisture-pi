@@ -1,44 +1,62 @@
 [
     {
-        "Tau_Pair":"Low:0.01 - High:0.96",
-        "Raw_PICP":0.9268292683,
-        "Raw_MPIW":38.2646903992,
-        "CQR_PICP":0.9219512195,
-        "CQR_MPIW":36.9229499073
+        "Tau_Pair": "Low:0.01 - High:0.96",
+        "RawCal_PICP": 0.97561,
+        "RawCal_MPIW": 40.015274,
+        "Raw_PICP": 0.960976,
+        "Raw_MPIW": 40.51432,
+        "CQR_PICP": 0.907317,
+        "CQR_MPIW": 37.041576,
+        "crossing_pct": 0.0
     },
     {
-        "Tau_Pair":"Low:0.015 - High:0.965",
-        "Raw_PICP":0.9463414634,
-        "Raw_MPIW":39.1571006775,
-        "CQR_PICP":0.9170731707,
-        "CQR_MPIW":37.2555014424
+        "Tau_Pair": "Low:0.015 - High:0.965",
+        "RawCal_PICP": 0.97561,
+        "RawCal_MPIW": 40.287548,
+        "Raw_PICP": 0.960976,
+        "Raw_MPIW": 40.562351,
+        "CQR_PICP": 0.912195,
+        "CQR_MPIW": 37.55135,
+        "crossing_pct": 0.0
     },
     {
-        "Tau_Pair":"Low:0.02 - High:0.97",
-        "Raw_PICP":0.956097561,
-        "Raw_MPIW":39.5146179199,
-        "CQR_PICP":0.9219512195,
-        "CQR_MPIW":37.4687841375
+        "Tau_Pair": "Low:0.02 - High:0.97",
+        "RawCal_PICP": 0.970732,
+        "RawCal_MPIW": 41.932457,
+        "Raw_PICP": 0.965854,
+        "Raw_MPIW": 42.024376,
+        "CQR_PICP": 0.921951,
+        "CQR_MPIW": 39.348347,
+        "crossing_pct": 0.0
     },
     {
-        "Tau_Pair":"Low:0.025 - High:0.975",
-        "Raw_PICP":0.9658536585,
-        "Raw_MPIW":41.0207214355,
-        "CQR_PICP":0.9219512195,
-        "CQR_MPIW":38.7201722226
+        "Tau_Pair": "Low:0.025 - High:0.975",
+        "RawCal_PICP": 0.97561,
+        "RawCal_MPIW": 42.720016,
+        "Raw_PICP": 0.970732,
+        "Raw_MPIW": 42.80278,
+        "CQR_PICP": 0.931707,
+        "CQR_MPIW": 40.589816,
+        "crossing_pct": 0.0
     },
     {
-        "Tau_Pair":"Low:0.03 - High:0.98",
-        "Raw_PICP":0.9707317073,
-        "Raw_MPIW":41.9859275818,
-        "CQR_PICP":0.912195122,
-        "CQR_MPIW":39.46468972
+        "Tau_Pair": "Low:0.03 - High:0.98",
+        "RawCal_PICP": 0.97561,
+        "RawCal_MPIW": 43.822052,
+        "Raw_PICP": 0.965854,
+        "Raw_MPIW": 44.180527,
+        "CQR_PICP": 0.926829,
+        "CQR_MPIW": 42.245415,
+        "crossing_pct": 0.0
     },
     {
-        "Tau_Pair":"Low:0.04 - High:0.99",
-        "Raw_PICP":0.9707317073,
-        "Raw_MPIW":43.6619110107,
-        "CQR_PICP":0.9219512195,
-        "CQR_MPIW":41.6325824796
+        "Tau_Pair": "Low:0.04 - High:0.99",
+        "RawCal_PICP": 0.97561,
+        "RawCal_MPIW": 47.939152,
+        "Raw_PICP": 0.965854,
+        "Raw_MPIW": 47.408298,
+        "CQR_PICP": 0.95122,
+        "CQR_MPIW": 46.691025,
+        "crossing_pct": 0.0
     }
 ]

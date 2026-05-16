@@ -1,14 +1,20 @@
 {
     "SVM_Split_Conformal": {
-        "PICP": 0.9150326797385621,
-        "MPIW": 39.99782968459487
+        "PICP": 0.960784,
+        "MPIW": 42.303693
     },
-    "Linear_CQR": {
-        "PICP": 0.9477124183006536,
-        "MPIW": 42.23333333333333
+    "GBM_CQR": {
+        "PICP": 0.934641,
+        "MPIW": 33.852657,
+        "crossing_rate": 0.0
+    },
+    "ANN_Split_Conformal": {
+        "PICP": 0.954248,
+        "MPIW": 39.722978
     },
     "ANN_CQR": {
-        "PICP": 0.9411764705882353,
-        "MPIW": 41.867046133053854
+        "PICP": 0.973856,
+        "MPIW": 40.642346,
+        "crossing_rate": 0.0
     }
 }

@@ -625,7 +625,7 @@ class PredictionIntervalEstimation(Experiment):
 
 
         # print("--------- TRAINING UPPER MODEL -----------\n")
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
         progress = EpochTqdm(total_epochs=epochs)
         self.upper_model_history = self.upper_model.fit(
             self.X_train_scaled, self.y_train,
@@ -637,7 +637,7 @@ class PredictionIntervalEstimation(Experiment):
         )
         # print("--------- TRAINING LOWER MODEL -----------\n")
         progress = EpochTqdm(total_epochs=epochs)
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
         self.lower_model_history = self.lower_model.fit(
             self.X_train_scaled, self.y_train,
             epochs=epochs,
@@ -886,12 +886,92 @@ class ConformalRegression:
 
 
 
+# ── Module-level helpers for ConformalizedQuantileExperiment ─────────────────
+
+def _cqr_pinball(tau):
+    def loss(y_true, y_pred):
+        e = y_true - y_pred
+        return tf.reduce_mean(tf.maximum(tau * e, (tau - 1) * e))
+    return loss
+
+
+def _build_dual_ann_me(input_dim):
+    """Shared-backbone dual-output ANN for CQR (lo and hi quantile heads)."""
+    inp    = tf.keras.Input(shape=(input_dim,))
+    x      = tf.keras.layers.Dense(16, activation='relu')(inp)
+    x      = tf.keras.layers.Dropout(0.09)(x)
+    x      = tf.keras.layers.Dense(8, activation='relu')(x)
+    x      = tf.keras.layers.Dropout(0.09)(x)
+    lo_out = tf.keras.layers.Dense(1, name='lo')(x)
+    hi_out = tf.keras.layers.Dense(1, name='hi')(x)
+    return tf.keras.Model(inputs=inp, outputs=[lo_out, hi_out])
+
+
+def _train_dual_me(X_tr, X_v, y_tr, y_v, lo_tau, hi_tau, epochs, input_dim, lr=1e-3, patience=30):
+    tf.keras.backend.clear_session()
+    tf.random.set_seed(42)
+    model = _build_dual_ann_me(input_dim)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(lr),
+        loss=[_cqr_pinball(lo_tau), _cqr_pinball(hi_tau)],
+        loss_weights=[1.0, 1.0]
+    )
+    cb = [EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)]
+    model.fit(X_tr, [y_tr, y_tr], validation_data=(X_v, [y_v, y_v]),
+              epochs=epochs, batch_size=32, verbose=0, callbacks=cb)
+    return model
+
+
+def _predict_dual_me(model, X):
+    preds = model.predict(X, verbose=0)
+    lo = preds[0].flatten(); hi = preds[1].flatten()
+    return np.where(lo > hi, hi, lo), np.where(lo > hi, lo, hi)
+
+
+def _build_ann_reg_me(input_dim):
+    inp = tf.keras.Input(shape=(input_dim,))
+    x   = tf.keras.layers.Dense(16, activation='relu')(inp)
+    x   = tf.keras.layers.Dropout(0.09)(x)
+    x   = tf.keras.layers.Dense(8, activation='relu')(x)
+    x   = tf.keras.layers.Dropout(0.09)(x)
+    out = tf.keras.layers.Dense(1)(x)
+    return tf.keras.Model(inputs=inp, outputs=out)
+
+
+def _train_ann_reg_me(X_tr, X_v, y_tr, y_v, epochs, input_dim, lr=1e-3, patience=30):
+    tf.keras.backend.clear_session()
+    tf.random.set_seed(42)
+    model = _build_ann_reg_me(input_dim)
+    model.compile(optimizer=tf.keras.optimizers.Adam(lr), loss='mse')
+    cb = [EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True)]
+    model.fit(X_tr, y_tr, validation_data=(X_v, y_v),
+              epochs=epochs, batch_size=32, verbose=0, callbacks=cb)
+    return model
+
+
 class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
-    def __init__(self, X, y, satellite, train_size=0.8, test_size=0.1, val_size=0.1, split_type='train-val-test', print_stats=None):
-        # Reuse parent init for data splitting (Train=Fit, Val=Calibration, Test=Evaluate) and scaling
-        super().__init__(X, y, satellite, train_size, test_size, val_size, split_type, print_stats)
+    def __init__(self, X, y, satellite, train_size=0.7, test_size=0.1, val_size=0.1, split_type='train-val-test', print_stats=None):
+        # 70/10/10/10: train / val (early-stop) / cal (conformal) / test
+        self.satellite   = satellite
         self.results_path = OUTPUT_PATH / "conformal_results"
         os.makedirs(self.results_path, exist_ok=True)
+        self.y = np.array(y).reshape(-1)
+
+        X_tr,  X_rest,  y_tr,  y_rest  = train_test_split(X,      self.y, train_size=0.7, random_state=42)
+        X_v,   X_rest2, y_v,   y_rest2 = train_test_split(X_rest,  y_rest, train_size=1/3, random_state=42)
+        X_cal, X_te,    y_cal, y_te    = train_test_split(X_rest2, y_rest2, test_size=0.5,  random_state=42)
+
+        self.X_train, self.y_train = X_tr,  y_tr
+        self.X_val,   self.y_val   = X_v,   y_v
+        self.X_cal,   self.y_cal   = X_cal, y_cal
+        self.X_test,  self.y_test  = X_te,  y_te
+
+        sc = MinMaxScaler()
+        self.X_train_scaled = sc.fit_transform(X_tr)
+        self.X_val_scaled   = sc.transform(X_v)
+        self.X_cal_scaled   = sc.transform(X_cal)
+        self.X_test_scaled  = sc.transform(X_te)
+        self.x_scaler = sc
 
     def __apply_cqr_calibration(self, y_true_cal, y_lower_cal, y_upper_cal, y_lower_test, y_upper_test, alpha=0.05):
         """
@@ -938,98 +1018,97 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         
         return y_lower_test, y_upper_test
 
-    def run_linear_cqr(self, alpha=0.05):
-        print("\n--- Running Linear CQR (QuantileRegressor) ---")
-        # Train Lower Quantile Model
-        qr_low = QuantileRegressor(quantile=alpha/2, solver='highs')
-        qr_low.fit(self.X_train_scaled, self.y_train)
-        
-        # Train Upper Quantile Model
-        qr_high = QuantileRegressor(quantile=1 - alpha/2, solver='highs')
-        qr_high.fit(self.X_train_scaled, self.y_train)
-        
-        # Predict on Calibration (Val)
-        low_cal = qr_low.predict(self.X_val_scaled)
-        high_cal = qr_high.predict(self.X_val_scaled)
-        
-        # Predict on Test
-        low_test = qr_low.predict(self.X_test_scaled)
-        high_test = qr_high.predict(self.X_test_scaled)
-        
-        # Apply CQR
-        return self.__apply_cqr_calibration(
-            self.y_val, low_cal, high_cal, low_test, high_test, alpha
+    def run_gbm_cqr(self, alpha=0.05):
+        print("\n--- Running GBM CQR (GradientBoostingRegressor) ---")
+        lo_tau, hi_tau = alpha / 2, 1 - alpha / 2
+        gbm_lo = GradientBoostingRegressor(loss='quantile', alpha=lo_tau, n_estimators=200,
+                                           max_depth=4, learning_rate=0.05, random_state=42)
+        gbm_hi = GradientBoostingRegressor(loss='quantile', alpha=hi_tau, n_estimators=200,
+                                           max_depth=4, learning_rate=0.05, random_state=42)
+        gbm_lo.fit(self.X_train_scaled, self.y_train)
+        gbm_hi.fit(self.X_train_scaled, self.y_train)
+        p_lo_cal = gbm_lo.predict(self.X_cal_scaled);  p_hi_cal = gbm_hi.predict(self.X_cal_scaled)
+        p_lo_te  = gbm_lo.predict(self.X_test_scaled); p_hi_te  = gbm_hi.predict(self.X_test_scaled)
+        cross_rate = float((p_lo_te > p_hi_te).mean())
+        p_lo_cal, p_hi_cal = np.minimum(p_lo_cal, p_hi_cal), np.maximum(p_lo_cal, p_hi_cal)
+        p_lo_te,  p_hi_te  = np.minimum(p_lo_te,  p_hi_te),  np.maximum(p_lo_te,  p_hi_te)
+        lo, hi = self._ConformalizedQuantileExperiment__apply_cqr_calibration(
+            self.y_cal, p_lo_cal, p_hi_cal, p_lo_te, p_hi_te, alpha
         )
+        return lo, hi, cross_rate
 
     def run_svm_conformal(self, alpha=0.05):
         print("\n--- Running SVM Split Conformal (SVR) ---")
-        # SVM doesn't support Quantile loss natively efficiently.
-        # We use standard Split Conformal: Predict Mean -> Calibrate Residuals.
-        
-        # 1. Train SVR (Mean predictor)
-        # Note: SVR can be slow on unscaled Y. 
-        # If y is large, consider scaling Y, but for consistency we use y_train (unscaled) here
-        # assuming the user handles runtime or data isn't huge.
-        svr = SVR(kernel='rbf') 
+        svr = SVR(kernel='rbf')
         svr.fit(self.X_train_scaled, self.y_train)
-        
-        # 2. Predict
-        pred_cal = svr.predict(self.X_val_scaled)
+        pred_cal  = svr.predict(self.X_cal_scaled)
         pred_test = svr.predict(self.X_test_scaled)
-        
-        # 3. Apply Split Conformal
-        return self.__apply_split_conformal_calibration(
-            self.y_val, pred_cal, pred_test, alpha
+        return self._ConformalizedQuantileExperiment__apply_split_conformal_calibration(
+            self.y_cal, pred_cal, pred_test, alpha
         )
 
-    def run_ann_cqr(self, model_template, epochs=100, alpha=0.05):
-        print("\n--- Running ANN CQR ---")
-        # 1. Train Quantile ANN (using parent class logic)
-        # Returns raw quantile predictions (uncalibrated)
-        low_test, high_test, low_cal, high_cal = self.train_model(
-            model_template, 
-            optimizer='adam', 
-            epochs=epochs, 
-            batch_size=32, 
-            verbose=0,
-            learning_rate=0.001
+    def run_ann_split_conformal(self, epochs=500, alpha=0.05):
+        print("\n--- Running ANN Split Conformal ---")
+        input_dim = self.X_train_scaled.shape[1]
+        model = _train_ann_reg_me(
+            self.X_train_scaled, self.X_val_scaled,
+            self.y_train, self.y_val, epochs, input_dim
         )
-        
-        # 2. Apply CQR
-        return self.__apply_cqr_calibration(
-            self.y_val, low_cal, high_cal, low_test, high_test, alpha
+        pred_cal  = model.predict(self.X_cal_scaled,  verbose=0).flatten()
+        pred_test = model.predict(self.X_test_scaled, verbose=0).flatten()
+        return self._ConformalizedQuantileExperiment__apply_split_conformal_calibration(
+            self.y_cal, pred_cal, pred_test, alpha
         )
 
-    def run_experiment(self, ann_model_template, epochs=100, alpha=0.05):
+    def run_ann_cqr(self, model_template=None, epochs=500, alpha=0.05):
+        print("\n--- Running ANN CQR (dual-output backbone) ---")
+        input_dim = self.X_train_scaled.shape[1]
+        dual_m = _train_dual_me(
+            self.X_train_scaled, self.X_val_scaled,
+            self.y_train, self.y_val,
+            alpha / 2, 1 - alpha / 2, epochs, input_dim
+        )
+        preds_cal = dual_m.predict(self.X_cal_scaled,  verbose=0)
+        preds_te  = dual_m.predict(self.X_test_scaled, verbose=0)
+        lo_cal_r = preds_cal[0].flatten(); hi_cal_r = preds_cal[1].flatten()
+        lo_te_r  = preds_te[0].flatten();  hi_te_r  = preds_te[1].flatten()
+        cross_rate = float((lo_te_r > hi_te_r).mean())
+        lo_cal = np.where(lo_cal_r > hi_cal_r, hi_cal_r, lo_cal_r)
+        hi_cal = np.where(lo_cal_r > hi_cal_r, lo_cal_r, hi_cal_r)
+        lo_te  = np.where(lo_te_r  > hi_te_r,  hi_te_r,  lo_te_r)
+        hi_te  = np.where(lo_te_r  > hi_te_r,  lo_te_r,  hi_te_r)
+        lo, hi = self._ConformalizedQuantileExperiment__apply_cqr_calibration(
+            self.y_cal, lo_cal, hi_cal, lo_te, hi_te, alpha
+        )
+        return lo, hi, cross_rate
+
+    def run_experiment(self, ann_model_template=None, epochs=500, alpha=0.05):
         results = {}
-        
-        # 1. Run Models
-        svm_low, svm_high = self.run_svm_conformal(alpha)
-        lin_low, lin_high = self.run_linear_cqr(alpha)
-        ann_low, ann_high = self.run_ann_cqr(ann_model_template, epochs, alpha)
-        
+
+        svm_lo, svm_hi         = self.run_svm_conformal(alpha)
+        gbm_lo, gbm_hi, gbm_cr = self.run_gbm_cqr(alpha)
+        asc_lo, asc_hi         = self.run_ann_split_conformal(epochs, alpha)
+        acq_lo, acq_hi, acq_cr = self.run_ann_cqr(None, epochs, alpha)
+
         experiments = {
-            "SVM_Split_Conformal": (svm_low, svm_high),
-            "Linear_CQR": (lin_low, lin_high),
-            "ANN_CQR": (ann_low, ann_high)
+            "SVM_Split_Conformal": (svm_lo, svm_hi, None),
+            "GBM_CQR":             (gbm_lo, gbm_hi, gbm_cr),
+            "ANN_Split_Conformal": (asc_lo, asc_hi, None),
+            "ANN_CQR":             (acq_lo, acq_hi, acq_cr),
         }
-        
-        # 2. Evaluate and Plot
-        for name, (y_low, y_high) in experiments.items():
+
+        for name, (y_lo, y_hi, cross) in experiments.items():
             print(f"Evaluating {name}...")
-            
-            # Metrics
-            metrics = self.evaluate_model(self.y_test, y_low, y_high)
+            metrics = self.evaluate_model(self.y_test, y_lo, y_hi)
+            if cross is not None:
+                metrics['crossing_rate'] = round(cross, 4)
             results[name] = metrics
-            
-            # Plot
-            self.plot_prediction_interval(y_low, y_high, [], [], name) # Passing empty Val lists as we focus on Test result
-            
-        # 3. Save Results
+            self.plot_prediction_interval(y_lo, y_hi, [], [], name)
+
         metrics_path = self.results_path / f"{self.satellite}_conformal_metrics.json"
         with open(metrics_path, "w") as f:
             json.dump(results, f, indent=4)
-            
+
         print(f"\nAll Conformal Experiments Completed. Results saved to {metrics_path}")
         return results
     
@@ -1103,62 +1182,54 @@ class ConformalizedQuantileExperiment(PredictionIntervalEstimation):
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
 
-    def run_ann_tuning_experiment(self, model_template, lower_taus=[0.01, 0.015, 0.02, 0.025, 0.03, 0.04], epochs=100):
-        """
-        Runs ANN QR and CQR for various (tau_lower, tau_upper) pairs 
-        where the difference is fixed at 0.95.
-        """
+    def run_ann_tuning_experiment(self, model_template=None, lower_taus=[0.01, 0.015, 0.02, 0.025, 0.03, 0.04], epochs=500):
+        """Tau tuning with dual-output ANN; cal-based selection: min RawCal_MPIW where RawCal_PICP >= 0.95."""
         tuning_results = []
-        alpha = 0.05 # Fixed target alpha
+        alpha     = 0.05
+        input_dim = self.X_train_scaled.shape[1]
 
         print(f"\n=== Starting Tau Hyperparameter Tuning for {self.satellite} ===")
-        
+
         for lo in lower_taus:
-            hi = round(lo + 0.95, 3) # Maintain 0.95 gap
+            hi        = round(lo + 0.95, 3)
             pair_name = f"Low:{lo} - High:{hi}"
             print(f"\nRunning configuration: {pair_name}")
 
-            # 1. Train Base Models
-            # We use the updated train_model which accepts tau arguments
-            pred_lo_test, pred_hi_test, pred_lo_val, pred_hi_val = self.train_model(
-                model_template, 
-                optimizer='adam', 
-                epochs=epochs, 
-                learning_rate=0.001,
-                verbose=0,
-                tau_lower=lo,
-                tau_upper=hi
+            dual_m    = _train_dual_me(
+                self.X_train_scaled, self.X_val_scaled,
+                self.y_train, self.y_val, lo, hi, epochs, input_dim
             )
+            preds_cal = dual_m.predict(self.X_cal_scaled,  verbose=0)
+            preds_te  = dual_m.predict(self.X_test_scaled, verbose=0)
+            lo_cal_r  = preds_cal[0].flatten(); hi_cal_r = preds_cal[1].flatten()
+            lo_te_r   = preds_te[0].flatten();  hi_te_r  = preds_te[1].flatten()
+            cross_rate = float((lo_te_r > hi_te_r).mean())
+            lo_cal = np.where(lo_cal_r > hi_cal_r, hi_cal_r, lo_cal_r)
+            hi_cal = np.where(lo_cal_r > hi_cal_r, lo_cal_r, hi_cal_r)
+            lo_te  = np.where(lo_te_r  > hi_te_r,  hi_te_r,  lo_te_r)
+            hi_te  = np.where(lo_te_r  > hi_te_r,  lo_te_r,  hi_te_r)
 
-            # 2. Evaluate Raw QR
-            raw_metrics = self.evaluate_model(self.y_test, pred_lo_test, pred_hi_test)
-
-            # 3. Apply CQR Calibration
-            # We use the Validation set predictions to calibrate
-            cqr_lo_test, cqr_hi_test = self._ConformalizedQuantileExperiment__apply_cqr_calibration(
-                self.y_val, pred_lo_val, pred_hi_val, pred_lo_test, pred_hi_test, alpha=alpha
+            raw_cal_m = self.evaluate_model(self.y_cal,  lo_cal, hi_cal)
+            raw_te_m  = self.evaluate_model(self.y_test, lo_te,  hi_te)
+            cqr_lo, cqr_hi = self._ConformalizedQuantileExperiment__apply_cqr_calibration(
+                self.y_cal, lo_cal, hi_cal, lo_te, hi_te, alpha=alpha
             )
-
-            # 4. Evaluate CQR
-            cqr_metrics = self.evaluate_model(self.y_test, cqr_lo_test, cqr_hi_test)
+            cqr_m = self.evaluate_model(self.y_test, cqr_lo, cqr_hi)
 
             tuning_results.append({
-                "Tau_Pair": pair_name,
-                "Raw_PICP": raw_metrics['PICP'],
-                "Raw_MPIW": raw_metrics['MPIW'],
-                "CQR_PICP": cqr_metrics['PICP'],
-                "CQR_MPIW": cqr_metrics['MPIW']
+                "Tau_Pair":     pair_name,
+                "RawCal_PICP":  raw_cal_m['PICP'],
+                "RawCal_MPIW":  raw_cal_m['MPIW'],
+                "Raw_PICP":     raw_te_m['PICP'],
+                "Raw_MPIW":     raw_te_m['MPIW'],
+                "CQR_PICP":     cqr_m['PICP'],
+                "CQR_MPIW":     cqr_m['MPIW'],
+                "crossing_pct": round(cross_rate * 100, 2),
             })
 
-        # Convert to DF for easier plotting
         df_results = pd.DataFrame(tuning_results)
-        
-        # Save JSON
-        json_path = self.results_path / f"{self.satellite}_tau_tuning_metrics.json"
+        json_path  = self.results_path / f"{self.satellite}_tau_tuning_metrics.json"
         df_results.to_json(json_path, orient='records', indent=4)
         print(f"Tuning metrics saved to {json_path}")
-
-        # Plot
         self.plot_tuning_comparison(df_results)
-
         return df_results
