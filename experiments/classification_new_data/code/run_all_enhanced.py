@@ -67,8 +67,8 @@ OUTPUT_PATH = ROOT / 'output'
 OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
 
 # ── shared constants ─────────────────────────────────────────────────────────
-X_COLS_EOS = ['HH-pol', 'HV-pol', 'cross_pol_ratio', 'month_sin', 'month_cos', 'crop_encoded']
-X_COLS_SEN = ['VH-pol', 'VV-pol', 'cross_pol_ratio', 'month_sin', 'month_cos', 'crop_encoded']
+X_COLS_EOS = ['HH-pol', 'HV-pol', 'cross_pol_ratio', 'month_sin', 'month_cos', 'crop_encoded', 'NDVI']
+X_COLS_SEN = ['VH-pol', 'VV-pol', 'cross_pol_ratio', 'month_sin', 'month_cos', 'crop_encoded', 'NDVI']
 Y_COL      = 'SM1 (%)'
 CLASS_LABELS = ['Low', 'Medium', 'High', 'Very High']
 INPUT_DIM  = 6
@@ -91,7 +91,7 @@ def _load_sheets(xlsx_path, drop='UniqueCrops'):
     )
 
 
-def prepare_enhanced(raw_path, pol1, pol2, out_path):
+def prepare_enhanced(raw_path, pol1, pol2, out_path, ndvi_csv=None):
     df = _load_sheets(raw_path)
     df = df.dropna()
     df['date'] = pd.to_datetime(df['Sample Date & Time'], errors='coerce')
@@ -106,11 +106,28 @@ def prepare_enhanced(raw_path, pol1, pol2, out_path):
     le = LabelEncoder()
     df['crop_encoded'] = le.fit_transform(df['Crop Name'].str.strip())
 
-    # balanced 4-class label (same as original exploration notebook)
     df['label'] = pd.qcut(df[Y_COL], q=4, labels=CLASS_LABELS)
 
+    # Merge NDVI if available
+    if ndvi_csv is not None and ndvi_csv.exists():
+        ndvi = pd.read_csv(ndvi_csv)
+        ndvi['month'] = pd.to_datetime(ndvi['date']).dt.month
+        monthly_med = ndvi.groupby('month')['NDVI'].median()
+        ndvi['NDVI'] = ndvi['NDVI'].fillna(ndvi['month'].map(monthly_med))
+        ndvi[pol1] = ndvi[pol1].round(4)
+        ndvi[pol2] = ndvi[pol2].round(4)
+        df[pol1]   = df[pol1].round(4)
+        df[pol2]   = df[pol2].round(4)
+        df = df.merge(ndvi[[pol1, pol2, 'NDVI']].drop_duplicates(subset=[pol1, pol2]),
+                      on=[pol1, pol2], how='left')
+        still_nan = df['NDVI'].isna().sum()
+        if still_nan > 0:
+            df['NDVI'] = df['NDVI'].fillna(df['Month'].map(monthly_med))
+    else:
+        df['NDVI'] = np.nan
+
     keep = [pol1, pol2, 'cross_pol_ratio', 'month_sin', 'month_cos',
-            'crop_encoded', Y_COL, 'Crop Name', 'label']
+            'crop_encoded', 'NDVI', Y_COL, 'Crop Name', 'label']
     df[keep].to_csv(out_path, index=False)
     print(f"  Saved {len(df)} rows → {out_path.name}")
     return df[keep]
@@ -119,11 +136,13 @@ def prepare_enhanced(raw_path, pol1, pol2, out_path):
 print("\n[Phase 0] Preparing enhanced CSVs …")
 eos_df = prepare_enhanced(
     DATA_PATH / 'EOS-04_datasheet.xlsx', 'HH-pol', 'HV-pol',
-    DATA_PATH / 'eos-04-enhanced.csv'
+    DATA_PATH / 'eos-04-enhanced-ndvi.csv',
+    ndvi_csv=DATA_PATH / 'eos04_ndvi.csv',
 )
 sen_df = prepare_enhanced(
     DATA_PATH / 'sentinel-1.xlsx', 'VH-pol', 'VV-pol',
-    DATA_PATH / 'sentinel-1-enhanced.csv'
+    DATA_PATH / 'sentinel-1-enhanced-ndvi.csv',
+    ndvi_csv=DATA_PATH / 'sentinel1_ndvi.csv',
 )
 
 X_eos = eos_df[X_COLS_EOS].values
