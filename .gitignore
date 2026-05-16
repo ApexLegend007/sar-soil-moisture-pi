@@ -14,3 +14,4 @@ wheels/
 */.ipynb_checkpoints
 
 .vscode
+experiments/classification_new_data/documents/
