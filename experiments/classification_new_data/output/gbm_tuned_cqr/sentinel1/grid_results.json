@@ -1,0 +1,2018 @@
+[
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.061536,
+        "base_width_cal": 34.376,
+        "base_width_te": 33.7105,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 36.98715
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 35.833537
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.690835,
+        "base_width_cal": 22.6063,
+        "base_width_te": 21.2579,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 33.938003
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 32.63953
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.896018,
+        "base_width_cal": 32.7515,
+        "base_width_te": 32.0567,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 36.983473
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 35.848701
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.5771,
+        "base_width_cal": 22.6059,
+        "base_width_te": 21.0863,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 33.575335
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 32.240498
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.05655,
+        "base_width_cal": 34.375,
+        "base_width_te": 33.7108,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 36.976786
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 35.823912
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.958424,
+        "base_width_cal": 22.2468,
+        "base_width_te": 20.872,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 34.002009
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 32.788815
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.121786,
+        "base_width_cal": 32.1432,
+        "base_width_te": 31.4974,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 36.896796
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 35.741017
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.4464,
+        "base_width_cal": 22.3719,
+        "base_width_te": 20.7764,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 32.978522
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 31.669185
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.751493,
+        "base_width_cal": 33.0292,
+        "base_width_te": 32.2483,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 37.059547
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 35.751293
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.030706,
+        "base_width_cal": 21.9935,
+        "base_width_te": 20.4897,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 33.807455
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 32.551136
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.102514,
+        "base_width_cal": 31.17,
+        "base_width_te": 30.262,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 35.833236
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 34.466986
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.578442,
+        "base_width_cal": 21.5086,
+        "base_width_te": 19.8762,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 32.459485
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 31.033098
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.799323,
+        "base_width_cal": 32.7555,
+        "base_width_te": 32.033,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 36.95
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 35.631623
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.021122,
+        "base_width_cal": 21.7226,
+        "base_width_te": 20.1099,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 33.427677
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 32.152135
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.521747,
+        "base_width_cal": 30.2138,
+        "base_width_te": 29.2456,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 35.678801
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 34.289049
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.627067,
+        "base_width_cal": 21.2271,
+        "base_width_te": 19.5227,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 32.158996
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 30.776867
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.476024,
+        "base_width_cal": 31.7817,
+        "base_width_te": 30.8735,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 35.422592
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 33.82552
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.832078,
+        "base_width_cal": 21.3939,
+        "base_width_te": 19.8606,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 32.657677
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 31.524726
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.506728,
+        "base_width_cal": 30.4298,
+        "base_width_te": 29.625,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 35.960291
+        },
+        "test": {
+            "PICP": 0.928105,
+            "MPIW": 34.638499
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.58334,
+        "base_width_cal": 20.4377,
+        "base_width_te": 19.078,
+        "val": {
+            "PICP": 0.934211,
+            "MPIW": 31.323302
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 30.244681
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.745695,
+        "base_width_cal": 31.2923,
+        "base_width_te": 30.4428,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 35.447691
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 33.934187
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.441643,
+        "base_width_cal": 21.0175,
+        "base_width_te": 19.5027,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 33.466838
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 32.386031
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.484888,
+        "base_width_cal": 29.5495,
+        "base_width_te": 28.7014,
+        "val": {
+            "PICP": 0.934211,
+            "MPIW": 35.058403
+        },
+        "test": {
+            "PICP": 0.921569,
+            "MPIW": 33.671159
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 1,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.584611,
+        "base_width_cal": 20.0073,
+        "base_width_te": 18.6095,
+        "val": {
+            "PICP": 0.927632,
+            "MPIW": 30.721012
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 29.778699
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 0.723372,
+        "base_width_cal": 32.7764,
+        "base_width_te": 31.398,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 34.66011
+        },
+        "test": {
+            "PICP": 0.921569,
+            "MPIW": 32.844782
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.430571,
+        "base_width_cal": 22.3763,
+        "base_width_te": 20.732,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 35.187434
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 33.593137
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.117616,
+        "base_width_cal": 31.5023,
+        "base_width_te": 30.2874,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 36.046671
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 34.522631
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.402991,
+        "base_width_cal": 21.8072,
+        "base_width_te": 20.209,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 32.70214
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 31.015026
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 0.734035,
+        "base_width_cal": 32.4126,
+        "base_width_te": 30.9535,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 34.337323
+        },
+        "test": {
+            "PICP": 0.908497,
+            "MPIW": 32.421542
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 7.131564,
+        "base_width_cal": 21.8528,
+        "base_width_te": 20.1298,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 35.895991
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 34.392881
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.345792,
+        "base_width_cal": 30.7291,
+        "base_width_te": 29.4595,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 35.678501
+        },
+        "test": {
+            "PICP": 0.928105,
+            "MPIW": 34.151099
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.395695,
+        "base_width_cal": 21.2015,
+        "base_width_te": 19.505,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 31.846003
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.296348
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.880737,
+        "base_width_cal": 31.158,
+        "base_width_te": 29.9641,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 35.501731
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 33.725607
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.00316,
+        "base_width_cal": 21.4689,
+        "base_width_te": 19.6937,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 33.327508
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 31.70003
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.60529,
+        "base_width_cal": 29.9028,
+        "base_width_te": 28.8591,
+        "val": {
+            "PICP": 0.973684,
+            "MPIW": 35.478406
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 34.069672
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.829944,
+        "base_width_cal": 20.5751,
+        "base_width_te": 18.9026,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 31.91117
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.562476
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.04851,
+        "base_width_cal": 30.1092,
+        "base_width_te": 28.8908,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 34.62064
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 32.987863
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.233244,
+        "base_width_cal": 21.05,
+        "base_width_te": 19.1508,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 33.225482
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 31.617336
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.882864,
+        "base_width_cal": 28.9782,
+        "base_width_te": 27.9449,
+        "val": {
+            "PICP": 0.973684,
+            "MPIW": 34.970822
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 33.710661
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.227029,
+        "base_width_cal": 19.9716,
+        "base_width_te": 18.1601,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 31.954251
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 30.614184
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.057018,
+        "base_width_cal": 30.0461,
+        "base_width_te": 28.6709,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 32.489099
+        },
+        "test": {
+            "PICP": 0.895425,
+            "MPIW": 30.784913
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.865447,
+        "base_width_cal": 20.1651,
+        "base_width_te": 18.1434,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 33.358348
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 31.874249
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 3.103559,
+        "base_width_cal": 28.177,
+        "base_width_te": 27.0097,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 34.70653
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 33.21683
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.456746,
+        "base_width_cal": 19.4082,
+        "base_width_te": 17.5998,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 32.022283
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.513313
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.925908,
+        "base_width_cal": 29.2514,
+        "base_width_te": 27.8493,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 33.288761
+        },
+        "test": {
+            "PICP": 0.915033,
+            "MPIW": 31.701133
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 7.020044,
+        "base_width_cal": 19.6086,
+        "base_width_te": 17.5367,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 33.115485
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 31.576814
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 4.205912,
+        "base_width_cal": 27.1796,
+        "base_width_te": 26.0299,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 35.869309
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 34.441707
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 5,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.93206,
+        "base_width_cal": 18.6414,
+        "base_width_te": 16.7827,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 32.092444
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 30.646847
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 1.915594,
+        "base_width_cal": 32.321,
+        "base_width_te": 31.5556,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 36.857678
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 35.386813
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.787651,
+        "base_width_cal": 21.9323,
+        "base_width_te": 20.5638,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 33.365568
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 32.139092
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.515319,
+        "base_width_cal": 31.0858,
+        "base_width_te": 30.0381,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 36.440782
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 35.068748
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.47401,
+        "base_width_cal": 21.4225,
+        "base_width_te": 20.0738,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 32.315112
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 31.021784
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.415546,
+        "base_width_cal": 30.9658,
+        "base_width_te": 30.1838,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 36.193164
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 35.014842
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.055299,
+        "base_width_cal": 21.2315,
+        "base_width_te": 19.8139,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 32.878156
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 31.924449
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.032157,
+        "base_width_cal": 29.9971,
+        "base_width_te": 28.8796,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.323698
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 32.943924
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.597427,
+        "base_width_cal": 20.8512,
+        "base_width_te": 19.4664,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 31.943009
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 30.661237
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.111711,
+        "base_width_cal": 30.1687,
+        "base_width_te": 29.2716,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.805024
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 33.49504
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.88931,
+        "base_width_cal": 21.0808,
+        "base_width_te": 19.7525,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 32.612914
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 31.531089
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.093596,
+        "base_width_cal": 29.5476,
+        "base_width_te": 28.3201,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 33.876957
+        },
+        "test": {
+            "PICP": 0.928105,
+            "MPIW": 32.50726
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.052885,
+        "base_width_cal": 20.2154,
+        "base_width_te": 18.6813,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 32.063162
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 30.787093
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.804746,
+        "base_width_cal": 29.4878,
+        "base_width_te": 28.5885,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 35.419378
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 34.19796
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.134338,
+        "base_width_cal": 20.3835,
+        "base_width_te": 19.0807,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 32.355525
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 31.34934
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.387656,
+        "base_width_cal": 28.833,
+        "base_width_te": 27.5765,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 33.735975
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 32.351853
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.506279,
+        "base_width_cal": 19.4767,
+        "base_width_te": 17.9032,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 32.066401
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.915758
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.686133,
+        "base_width_cal": 29.165,
+        "base_width_te": 28.253,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 34.790882
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 33.625273
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.095287,
+        "base_width_cal": 19.8794,
+        "base_width_te": 18.126,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 31.483574
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 30.316573
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 3.110831,
+        "base_width_cal": 28.6659,
+        "base_width_te": 27.3141,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 35.186757
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 33.535735
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.587401,
+        "base_width_cal": 19.2789,
+        "base_width_te": 17.7388,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 32.230228
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 30.913575
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.807704,
+        "base_width_cal": 28.2657,
+        "base_width_te": 27.2977,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.026364
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 32.913152
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.454964,
+        "base_width_cal": 19.2386,
+        "base_width_te": 17.4789,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 31.523938
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 30.388848
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 3.426781,
+        "base_width_cal": 27.6879,
+        "base_width_te": 26.2432,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.823509
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 33.096736
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 10,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 7.122259,
+        "base_width_cal": 18.5744,
+        "base_width_te": 16.9594,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 32.507154
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 31.203968
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.125496,
+        "base_width_cal": 31.3033,
+        "base_width_te": 30.1153,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 35.894522
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 34.366263
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 4.851776,
+        "base_width_cal": 21.9261,
+        "base_width_te": 20.6388,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 31.565538
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.342378
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.213295,
+        "base_width_cal": 30.9534,
+        "base_width_te": 29.9075,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 35.634872
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 34.334091
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.789208,
+        "base_width_cal": 21.588,
+        "base_width_te": 20.1596,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 32.999977
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 31.737965
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.393878,
+        "base_width_cal": 30.5751,
+        "base_width_te": 29.4106,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 35.630403
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 34.198353
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 4.89928,
+        "base_width_cal": 21.4918,
+        "base_width_te": 19.9965,
+        "val": {
+            "PICP": 0.934211,
+            "MPIW": 31.063143
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 29.795051
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.559372,
+        "base_width_cal": 29.9221,
+        "base_width_te": 28.8717,
+        "val": {
+            "PICP": 0.967105,
+            "MPIW": 35.315215
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 33.990469
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 3,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.723528,
+        "base_width_cal": 20.8741,
+        "base_width_te": 19.348,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 32.02039
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 30.795057
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.540013,
+        "base_width_cal": 29.9595,
+        "base_width_te": 28.6201,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 35.206823
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 33.700121
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.554836,
+        "base_width_cal": 20.8601,
+        "base_width_te": 19.3281,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 33.644428
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 32.437783
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.241351,
+        "base_width_cal": 29.4071,
+        "base_width_te": 28.1902,
+        "val": {
+            "PICP": 0.960526,
+            "MPIW": 34.074867
+        },
+        "test": {
+            "PICP": 0.928105,
+            "MPIW": 32.672931
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.637831,
+        "base_width_cal": 20.4475,
+        "base_width_te": 18.8946,
+        "val": {
+            "PICP": 0.934211,
+            "MPIW": 31.37067
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.170241
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.769796,
+        "base_width_cal": 29.1777,
+        "base_width_te": 27.826,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.826278
+        },
+        "test": {
+            "PICP": 0.954248,
+            "MPIW": 33.36555
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.841389,
+        "base_width_cal": 20.1432,
+        "base_width_te": 18.5577,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 33.200353
+        },
+        "test": {
+            "PICP": 0.960784,
+            "MPIW": 32.240519
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.729373,
+        "base_width_cal": 28.4785,
+        "base_width_te": 27.2698,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.173407
+        },
+        "test": {
+            "PICP": 0.928105,
+            "MPIW": 32.728498
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 4,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.697539,
+        "base_width_cal": 19.7438,
+        "base_width_te": 18.1772,
+        "val": {
+            "PICP": 0.934211,
+            "MPIW": 30.67471
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 29.572291
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.565376,
+        "base_width_cal": 29.0683,
+        "base_width_te": 27.8611,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.298118
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 32.991892
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 5.320582,
+        "base_width_cal": 20.3441,
+        "base_width_te": 18.6071,
+        "val": {
+            "PICP": 0.921053,
+            "MPIW": 30.430598
+        },
+        "test": {
+            "PICP": 0.928105,
+            "MPIW": 29.248298
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.838135,
+        "base_width_cal": 28.8048,
+        "base_width_te": 27.4988,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 34.561034
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 33.175092
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 200,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.191677,
+        "base_width_cal": 19.5082,
+        "base_width_te": 18.074,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 31.414433
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.457367
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 2.899528,
+        "base_width_cal": 28.0398,
+        "base_width_te": 26.8589,
+        "val": {
+            "PICP": 0.953947,
+            "MPIW": 33.947828
+        },
+        "test": {
+            "PICP": 0.934641,
+            "MPIW": 32.657982
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 1.0,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.369374,
+        "base_width_cal": 19.592,
+        "base_width_te": 17.9057,
+        "val": {
+            "PICP": 0.934211,
+            "MPIW": 31.671837
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 30.64441
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.025,
+            "tau_hi": 0.975
+        },
+        "q_hat": 3.056222,
+        "base_width_cal": 27.8739,
+        "base_width_te": 26.6622,
+        "val": {
+            "PICP": 0.947368,
+            "MPIW": 34.217202
+        },
+        "test": {
+            "PICP": 0.941176,
+            "MPIW": 32.774609
+        }
+    },
+    {
+        "params": {
+            "min_samples_leaf": 20,
+            "max_depth": 5,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "tau_lo": 0.1,
+            "tau_hi": 0.9
+        },
+        "q_hat": 6.320899,
+        "base_width_cal": 18.6894,
+        "base_width_te": 17.3019,
+        "val": {
+            "PICP": 0.940789,
+            "MPIW": 30.80972
+        },
+        "test": {
+            "PICP": 0.947712,
+            "MPIW": 29.943693
+        }
+    }
+]

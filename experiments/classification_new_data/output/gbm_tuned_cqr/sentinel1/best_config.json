@@ -1,0 +1,32 @@
+{
+    "selected_params": {
+        "min_samples_leaf": 5,
+        "max_depth": 4,
+        "n_estimators": 300,
+        "subsample": 0.8,
+        "tau_lo": 0.1,
+        "tau_hi": 0.9
+    },
+    "q_hat": 6.227029,
+    "val": {
+        "PICP": 0.953947,
+        "MPIW": 31.954251
+    },
+    "test": {
+        "PICP": 0.960784,
+        "MPIW": 30.614184
+    },
+    "delta_vs_gbm_cqr": -5.1358,
+    "delta_vs_qsvr": -6.9458,
+    "baselines": {
+        "GBM_CQR": {
+            "PICP": 0.9542,
+            "MPIW": 35.75
+        },
+        "QSVR": {
+            "PICP": 0.9542,
+            "MPIW": 37.56
+        }
+    },
+    "selection_threshold": 0.96
+}

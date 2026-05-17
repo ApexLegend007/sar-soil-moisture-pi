@@ -387,7 +387,7 @@ All architectures achieve PICP ≥ 0.95 for both sensors.
 | 2^14  | 0.0049 ❌ | 0.10 |
 | 2^15  | 0.0049 ❌ | 0.05 |
 
-★ **Best (PICP ≥ 0.95): γ=2^1 → PICP=0.9512, MPIW=30.91** (tightest valid interval in the study)
+★ **Best (PICP ≥ 0.95): γ=2^1 → PICP=0.9512, MPIW=30.91** (improved to MPIW=30.77 in Phase 8b C×γ grid)
 
 #### Sentinel-1
 
@@ -426,6 +426,48 @@ All architectures achieve PICP ≥ 0.95 for both sensors.
 | 2^15  | 0.0000 ❌ | 0.03 |
 
 ★ **Best (PICP ≥ 0.95): γ=2^-4 → PICP=0.9542, MPIW=37.56**
+
+### Phase 8b — Quantile SVR C × γ Joint Grid
+
+Phase 8 swept only γ at fixed C=2^6. Phase 8b adds C ∈ {2^4, 2^6, 2^8, 2^10} for a 13×4=52 joint grid per sensor (104 total QP solves).
+
+| Sensor | Best C | Best γ | PICP | MPIW | vs Phase 8 |
+|--------|:------:|:------:|:----:|:----:|:----------:|
+| EOS-04 | 2^8 | 2^0 | 0.9561 ✅ | **30.77** | −0.14 |
+| Sentinel-1 | 2^6 | 2^-4 | 0.9542 ✅ | 37.56 | 0.00 |
+
+EOS-04 improves marginally (30.91→30.77) with higher C=2^8 forcing tighter quantile adherence. Sentinel-1 shows no improvement: higher C causes interval over-collapse on a heteroscedastic sensor (σ/μ of raw widths = 26%), destroying PICP above C=2^6.
+
+---
+
+### Phase 9 — Adaptive CQR Variants (Negative Results)
+
+Three adaptive CQR methods were tested on top of the Phase 6 GBM base model. All failed to improve Sentinel-1 PICP while reducing MPIW:
+
+| Method | EOS-04 PICP | EOS-04 MPIW | S1 PICP | S1 MPIW |
+|--------|:-----------:|:-----------:|:-------:|:-------:|
+| GBM CQR (Phase 6 baseline) | 0.9659 ✅ | 35.70 | 0.9542 ✅ | 35.75 |
+| Interval-normalized CQR | 0.9610 ✅ | 35.34 | 0.9412 ❌ | 35.28 |
+| Mondrian CQR (crop-stratified) | 0.9317 ❌ | 36.80 | 0.9216 ❌ | 33.87 |
+
+**Root cause (MPIW decomposition):** The base GBM contributes 90–92% of final MPIW; the CQR correction contributes only 8–10%. Interval-normalized CQR introduces multiplicative estimation error in the normalization function, which exceeds the correction benefit at n_cal ≈ 153. Mondrian CQR produced negative group-level q̂ values (crop 5 EOS-04: q̂=−0.882; crop 19 S1: q̂=−0.046), indicating that the random 70/10/10/10 split violates within-crop exchangeability — different seasonal compositions end up in cal vs test per crop, invalidating the Mondrian conformal guarantee. **These are valid negative findings** confirming that adaptive CQR with ~150 calibration samples and 20+ crop classes introduces more estimation error than it eliminates.
+
+---
+
+### Phase 10 — Tuned GBM CQR (Hyperparameter Grid for MPIW Reduction)
+
+**Key insight from Phase 9 postmortem:** The base GBM hyperparameters (n_estimators=200, max_depth=4, lr=0.05, min_samples_leaf=1) were inherited from Phase 6 and never tuned for interval tightness. Since the base model contributes 90% of MPIW, tuning it directly is the primary lever.
+
+**Grid:** min_samples_leaf ∈ {1,5,10,20} × max_depth ∈ {3,4,5} × n_estimators ∈ {200,300} × subsample ∈ {1.0,0.8} × base_τ ∈ {(0.025,0.975),(0.1,0.9)} = 96 configs per sensor. Selection: val PICP ≥ 0.95 → min val MPIW.
+
+**Why min_samples_leaf matters:** With the default min_samples_leaf=1, GBM leaves can contain a single sample, making extreme quantile (2.5th/97.5th percentile) estimates unreliable. Larger min_samples_leaf forces leaf-level averaging over ≥n samples, producing smoother quantile surfaces. **Why base_τ=0.1/0.9:** fitting the 80% interval avoids noisy extreme-quantile leaf estimates; the CQR calibration step bridges the gap to 95% coverage using a stable q̂ from n_cal=153 scores.
+
+| Sensor | Selected params | q̂ | val PICP | val MPIW | test PICP | test MPIW | vs Phase 6 |
+|--------|:---------------:|:--:|:--------:|:--------:|:---------:|:---------:|:----------:|
+| EOS-04 | msl=1, depth=4, n=300, sub=0.8, τ=0.025 | 1.45 | 0.9510 ✅ | 33.10 | 0.9561 ✅ | **33.40** | −2.30 |
+| Sentinel-1 | msl=5, depth=4, n=300, sub=0.8, τ=0.1/0.9 | 6.23 | 0.9539 ✅ | 31.95 | 0.9608 ✅ | **30.61** | −5.14 |
+
+EOS-04: n_estimators=300 with subsample=0.8 (stochastic boosting) reduces MPIW from 35.70→33.40 (6.5%). QSVR Phase 8b still achieves the absolute minimum MPIW (30.77) for this sensor. Sentinel-1: the τ=0.1/0.9 strategy with msl=5 reduces MPIW from 35.75→30.61 (14.4%) — the largest single-phase improvement for this sensor in the study, also beating the QSVR best (37.56) by 18.5%.
 
 ---
 
@@ -473,14 +515,14 @@ The original experiment had six methodological bugs. The table below shows the e
 | **Tau selected on test set** | Best τ picked from test PICP/MPIW | Cal-based: min RawCal_MPIW where RawCal_PICP ≥ 0.95 | No data snooping; reported τ is reproducible |
 | **Only SAR features** | 6 features (pol + temporal + crop) | +NDVI from Sentinel-2/GEE | EOS-04 RF R²: 0.618→**0.648**; 5 new PICP≥0.95 crossings |
 
-### Net Improvement (Phase 6 CQR, best method per metric)
+### Net Improvement (best method per metric, across all phases)
 
-| Metric | Baseline best | New best (GBM CQR) | Change |
-|--------|:------------:|:------------------:|:------:|
-| EOS-04 PICP | 0.9073 | **0.9659** | +5.9 pp |
-| EOS-04 MPIW | 40.33 | **35.70** | −4.63 |
-| S1 PICP | 0.9346 (GBM) | **0.9804** (ANN CQR) | +4.6 pp |
-| S1 MPIW | 42.23 | **35.75** (GBM CQR) | −6.48 |
+| Metric | Baseline best | Best result | Method | Change |
+|--------|:------------:|:-----------:|:------:|:------:|
+| EOS-04 PICP | 0.9073 | **0.9659** | GBM CQR (Phase 6) | +5.9 pp |
+| EOS-04 MPIW | 40.33 | **30.77** | QSVR Phase 8b (C=2^8, γ=2^0) | −9.56 |
+| S1 PICP | 0.9346 | **0.9804** | ANN CQR dual-output (Phase 6) | +4.6 pp |
+| S1 MPIW | 42.23 | **30.61** | Tuned GBM CQR Phase 10 (τ=0.1/0.9) | −11.62 |
 
 ---
 
