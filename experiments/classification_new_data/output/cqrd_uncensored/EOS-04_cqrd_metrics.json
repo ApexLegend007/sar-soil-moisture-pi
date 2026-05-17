@@ -1,0 +1,21 @@
+{
+    "GBM_CQR_standard": {
+        "PICP": 0.965854,
+        "MPIW": 35.695433
+    },
+    "GBM_CQR_d": {
+        "PICP": 0.960976,
+        "MPIW": 35.344345
+    },
+    "q_hat_standard": 1.418737,
+    "q_hat_normalized": 0.037723,
+    "width_floor": 20.411359,
+    "raw_width_cal_mean": 32.841807,
+    "raw_width_cal_std": 5.260391,
+    "raw_width_te_mean": 32.857958,
+    "MPIW_reduction_pct": -0.98,
+    "phase6_baseline": {
+        "PICP": 0.9659,
+        "MPIW": 35.7
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "GBM_CQR_standard": {
+        "PICP": 0.965854,
+        "MPIW": 35.695433
+    },
+    "Mondrian_CQR": {
+        "PICP": 0.931707,
+        "MPIW": 36.802357
+    },
+    "q_hat_global": 1.418737,
+    "q_hat_per_group": {
+        "-1": 8.66006,
+        "5": -0.881662,
+        "18": 2.560991,
+        "26": 1.735365
+    },
+    "group_details": {
+        "Other": {
+            "n_test": 39,
+            "PICP": 1.0,
+            "MPIW": 50.914553,
+            "q_hat": 8.66006
+        },
+        "crop 5": {
+            "n_test": 96,
+            "PICP": 0.875,
+            "MPIW": 27.737264,
+            "q_hat": -0.881662
+        },
+        "crop 18": {
+            "n_test": 36,
+            "PICP": 0.972222,
+            "MPIW": 41.502292,
+            "q_hat": 2.560991
+        },
+        "crop 26": {
+            "n_test": 34,
+            "PICP": 0.970588,
+            "MPIW": 41.23399,
+            "q_hat": 1.735365
+        }
+    },
+    "MPIW_change_pct": 3.1,
+    "phase6_baseline": {
+        "PICP": 0.9659,
+        "MPIW": 35.7
+    }
+}
