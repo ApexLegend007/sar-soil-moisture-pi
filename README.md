@@ -10,11 +10,11 @@
 
 | Sensor | Best PICP | Best MPIW | Method | Phase |
 |--------|:---------:|:---------:|--------|:-----:|
-| EOS-04 | **0.9659** | 0.9659 | GBM CQR | 6 |
+| EOS-04 | **0.9659** | 35.70 | GBM CQR | 6 |
 | EOS-04 | 0.9561 | **30.77** | QSVR (C=2^8, γ=2^0) | 8b |
 | EOS-04 | 0.9561 | **33.40** | Tuned GBM CQR | 10 |
-| Sentinel-1 | **0.9804** | 0.9804 | ANN CQR dual-output | 6 |
-| Sentinel-1 | 0.9542 | — | GBM CQR baseline | 6 |
+| Sentinel-1 | **0.9804** | 41.77 | ANN CQR dual-output | 6 |
+| Sentinel-1 | 0.9542 | 35.75 | GBM CQR baseline | 6 |
 | Sentinel-1 | **0.9608** | **30.61** | Tuned GBM CQR (τ=0.1/0.9) | 10 |
 
 > All intervals are 95% conformalized (α=0.05). PICP ≥ 0.95 is the validity threshold. MPIW lower is better. Phase 10 reduces S1 MPIW from 35.75→30.61 (−14.4%) and EOS-04 MPIW from 35.70→33.40 (−6.5%) relative to the Phase 6 GBM CQR baseline — both with valid coverage.
@@ -316,7 +316,7 @@ Both methods are theoretically motivated but failed empirically. Root cause: n_c
 - `subsample` ∈ {1.0, 0.8}
 - `base_τ` ∈ {(0.025, 0.975), (0.1, 0.9)}
 
-**Selection criterion:** val PICP ≥ 0.95 → minimise val MPIW. Val set (10%) is used for model selection only; test set is never seen until final reporting. A secondary buffer (val PICP ≥ 0.96) is applied to hedge against finite-sample val/test variance at n=152 — equivalent to requiring 1 standard deviation above the coverage target.
+**Selection criterion:** val PICP ≥ 0.95 → minimise val MPIW. Val set (10%) is used for model selection only; test set is never seen until final reporting. A secondary buffer (val PICP ≥ 0.96) is applied to hedge against finite-sample val/test variance at n=152 — equivalent to requiring 1 standard deviation above the coverage target. For EOS-04, no config met the 0.96 buffer; the criterion falls back to val PICP ≥ 0.95 → minimum val MPIW (the original Phase 10 criterion). No test data is used in either path.
 
 ---
 
