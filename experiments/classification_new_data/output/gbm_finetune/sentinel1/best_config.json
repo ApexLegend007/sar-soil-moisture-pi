@@ -1,0 +1,57 @@
+{
+    "alpha": 0.1,
+    "goal_achieved": true,
+    "params": {
+        "lr": 0.03,
+        "n_estimators": 500,
+        "tau_lo": 0.15,
+        "tau_hi": 0.85,
+        "min_samples_leaf": 20,
+        "max_depth": 5,
+        "subsample": 1.0
+    },
+    "q_hat": 5.284472,
+    "base_width_te": 14.0987,
+    "val": {
+        "PICP": 0.901316,
+        "MPIW": 25.821844
+    },
+    "test": {
+        "PICP": 0.862745,
+        "MPIW": 24.667684
+    },
+    "n_target_hits": 1,
+    "n_also_test_90": 0,
+    "anchor": {
+        "lr": 0.03,
+        "n": 500,
+        "tau_lo": 0.15,
+        "tau_hi": 0.85,
+        "msl": 20,
+        "depth": 5,
+        "sub": 1.0,
+        "val_PICP": 0.9013,
+        "val_MPIW": 25.82,
+        "test_PICP": 0.8627,
+        "test_MPIW": 24.67
+    },
+    "all_target_hits": [
+        {
+            "val_PICP": 0.901316,
+            "val_MPIW": 25.821844,
+            "test_PICP": 0.862745,
+            "test_MPIW": 24.667684,
+            "q_hat": 5.284472,
+            "base_width_te": 14.0987,
+            "params": {
+                "lr": 0.03,
+                "n_estimators": 500,
+                "tau_lo": 0.15,
+                "tau_hi": 0.85,
+                "min_samples_leaf": 20,
+                "max_depth": 5,
+                "subsample": 1.0
+            }
+        }
+    ]
+}
