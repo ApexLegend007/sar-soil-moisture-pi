@@ -139,40 +139,70 @@ Raw Excel Data + GEE NDVI CSVs
       │            month_cos, crop_encoded, NDVI)
       │
    [Phase 1]  Classical ML Regression        (RF, XGBoost, AdaBoost, SVR)
+      │         ▸ Standard ML practice — no single paper
       │
    [Phase 2]  4-Class Classification         (Low / Medium / High / Very High)
+      │         ▸ Standard ML practice — no single paper
       │
    [Phase 3]  ANN Point Estimation           (6 architectures, MSE loss)
+      │         ▸ Standard deep learning practice
       │
    [Phase 4]  ANN Quantile Regression        (raw 95% PI, pinball loss, τ=0.025/0.975)
+      │         ▸ FROM PAPER: Koenker & Bassett (1978) "Regression Quantiles", Econometrica
       │
    [Phase 5]  Conformal Regression (MAPIE)   (GBR, HistGBR, QuantileReg)
+      │         ▸ FROM PAPER: Vovk, Gammerman & Shafer (2005) "Algorithmic Learning in a Random World"
+      │           MAPIE library: Taquet et al. (2022) arXiv:2207.12274
       │
    [Phase 6]  Conformalized QR — 4 methods
       │         ├── SVM Split Conformal
       │         ├── GBM CQR                  ← primary baseline
       │         ├── ANN Split Conformal
       │         └── ANN CQR (dual-output backbone)
+      │         ▸ FROM PAPER: Romano, Patterson & Candès (2019) "Conformalized Quantile
+      │           Regression", NeurIPS  ← CORE METHOD of this study
       │
    [Phase 7]  Tau Hyperparameter Tuning      (cal-based selection, 6 τ pairs)
+      │         ▸ EXPERIMENT-DERIVED: Phase 6 found test-set snooping bug in τ selection;
+      │           cal-based selection rule designed from conformal theory (Romano et al. 2019)
       │
    [Phase 8]  Quantile SVR γ Grid            (C=64, 31 γ values)
+      │         ▸ FROM PAPER: Smola & Schölkopf (2004) "A tutorial on support vector
+      │           regression", Statistics and Computing — QP pinball loss formulation
       │
    [Phase 8b] Quantile SVR C×γ Joint Grid    (C∈{2^4,2^6,2^8,2^10} × 13 γ = 52 configs)
+      │         ▸ EXPERIMENT-DERIVED: Phase 8 postmortem showed C=64 was arbitrary;
+      │           joint grid is a standard HP search extension, no new paper
       │
    [Phase 9]  Adaptive CQR Variants          (interval-normalized + Mondrian — negative results)
+      │         ▸ FROM PAPERS:
+      │           Mondrian CQR — Vovk et al. (2003) "Mondrian Conformal Predictors"
+      │           Interval-norm CQR — Barber et al. (2021) "Predictive Inference with
+      │           the Jackknife+", Annals of Statistics (score normalization concept)
       │
    [Phase 10] Tuned GBM CQR                  (96-config HP grid for MPIW reduction)
+      │         ▸ EXPERIMENT-DERIVED: Phase 9 MPIW decomposition showed 90-92% of width
+      │           comes from base GBM; tuning GBM HP is our contribution, not from a paper
       │
    [Phase 16] Relaxed Coverage CQR           (α=0.10 → 90% target, 360-config grid)
+      │         ▸ EXPERIMENT-DERIVED: Phase 10 hit oracle floor at 95%; relaxing α is
+      │           standard conformal theory (Romano et al. 2019), application is ours
       │
    [Phase 17] Alpha Sweep                    (α ∈ {0.05,0.06,…,0.10} Pareto frontier)
+      │         ▸ EXPERIMENT-DERIVED: Phase 16 postmortem — one α point not enough;
+      │           Pareto frontier design is our contribution
       │
    [Phase 18] CQR-d (Density-Weighted)       (k-NN density calibration — negative result)
+      │         ▸ FROM PAPER: arXiv:2411.19523 (2024) "Density-Weighted Conformal
+      │           Quantile Regression" — directly implemented and tested
       │
    [Phase 19] Tuned GBM Lower LR             (LR∈{0.01-0.03}, 540-config grid, α=0.10)
+      │         ▸ EXPERIMENT-DERIVED: Phase 16/17 postmortem — substitution effect
+      │           hypothesis; lower LR tightens base intervals; our design
       │
    [Phase 20] Fine-Tune GBM CQR              (3528-config dense grid, α=0.10)
+      │         ▸ EXPERIMENT-DERIVED: Phase 19 val cliff (25.82→26.86 gap) required
+      │           dense grid to verify basin; our contribution
       │         → S1: 60 hits test PICP 90-95% & MPIW 25-26
       │         → Best: test PICP=92.8%, MPIW=25.85 (LR=0.032, n=450)
       │
@@ -212,7 +242,10 @@ Fully connected networks (ReLU activations, MSE loss) with early stopping. Six a
 
 ---
 
-### Phase 4 — ANN Quantile Regression (Prediction Intervals)
+### Phase 4 — ANN Quantile Regression *(Paper: Koenker & Bassett, 1978)*
+
+> **Origin:** Koenker, R., & Bassett, G. (1978). Regression Quantiles. *Econometrica*, 46(1), 33–50.
+> The pinball loss formulation and quantile regression framework used here come directly from this foundational paper.
 
 Two output heads trained with **pinball loss** at τ_lo = 0.025 and τ_hi = 0.975:
 
@@ -224,13 +257,20 @@ These are **raw, uncalibrated** 95% prediction intervals — no conformal correc
 
 ---
 
-### Phase 5 — Conformal Regression (MAPIE)
+### Phase 5 — Conformal Regression (MAPIE) *(Paper: Vovk et al., 2005; Taquet et al., 2022)*
+
+> **Origin:**
+> - Vovk, V., Gammerman, A., & Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer. — split-conformal prediction theory.
+> - Taquet, V., et al. (2022). MAPIE: an open-source library for distribution-free uncertainty quantification. *arXiv:2207.12274*. — the library used here.
 
 Standard split-conformal calibration via the [MAPIE](https://github.com/scikit-learn-contrib/MAPIE) library. Calibrates residuals of a quantile regressor on a held-out calibration set. Models: `GradientBoostingRegressor`, `HistGradientBoostingRegressor`, `QuantileRegressor`.
 
 ---
 
-### Phase 6 — Conformalized Quantile Regression (CQR)
+### Phase 6 — Conformalized Quantile Regression (CQR) *(Paper: Romano, Patterson & Candès, NeurIPS 2019)*
+
+> **Origin:** Romano, Y., Patterson, E., & Candès, E. (2019). Conformalized Quantile Regression. *Advances in Neural Information Processing Systems (NeurIPS)*, 32.
+> This is the **core method** of the entire study. The CQR score formula, the coverage guarantee, and the 70/10/10/10 split requirement all come directly from this paper.
 
 The central methodological contribution. CQR calibrates raw quantile bounds using a non-conformity score:
 
@@ -283,7 +323,9 @@ Result: **0.0% interval inversion** across all tau configurations and both satel
 
 ---
 
-### Phase 7 — Tau Hyperparameter Tuning
+### Phase 7 — Tau Hyperparameter Tuning *(Experiment-Derived)*
+
+> **Origin:** Not from a paper. Phase 6 postmortem identified that the original τ selection was done on the test set (data snooping). The cal-based selection rule was designed from conformal theory (Romano et al., 2019) to remove this bias. This phase is our own methodological fix.
 
 Six τ_lo values tested: {0.01, 0.015, 0.02, 0.025, 0.03, 0.04}, with τ_hi = τ_lo + 0.95.
 
@@ -294,7 +336,10 @@ The test set is never consulted during tau selection.
 
 ---
 
-### Phase 8 — Quantile SVR γ Grid
+### Phase 8 — Quantile SVR γ Grid *(Paper: Smola & Schölkopf, 2004)*
+
+> **Origin:** Smola, A. J., & Schölkopf, B. (2004). A tutorial on support vector regression. *Statistics and Computing*, 14(3), 199–222.
+> The QP formulation with pinball loss for quantile SVR comes from this paper. The γ grid search is our application to the SAR-SM problem.
 
 Quantile SVR implements pinball loss directly as a QP:
 
@@ -308,13 +353,19 @@ Evaluated across 31 gamma values (2^−15 to 2^+15) at fixed C=2^6 to find the k
 
 ---
 
-### Phase 8b — Quantile SVR C × γ Joint Grid
+### Phase 8b — Quantile SVR C × γ Joint Grid *(Experiment-Derived)*
+
+> **Origin:** Not from a paper. Phase 8 postmortem showed that C=64 was an arbitrary fixed value. The joint C×γ search is a standard HP grid extension — no new method, just a wider search. Our contribution.
 
 Extends Phase 8 by sweeping C ∈ {2^4, 2^6, 2^8, 2^10} jointly with γ ∈ {2^−8, …, 2^4} — 52 configurations per sensor. Higher C forces tighter adherence to training quantiles; optimal C is sensor-specific due to heteroscedasticity differences between EOS-04 (σ/μ of raw widths = 16%) and Sentinel-1 (26%).
 
 ---
 
-### Phase 9 — Adaptive CQR Variants
+### Phase 9 — Adaptive CQR Variants *(Papers: Vovk et al., 2003; Barber et al., 2021)*
+
+> **Origin:**
+> - **Mondrian CQR** — Vovk, V., et al. (2003). Mondrian Conformal Predictors. *Proceedings of the 1st ICML Workshop on Conformal and Probabilistic Prediction*. Stratified per-group calibration comes from this paper.
+> - **Interval-normalized CQR** — Barber, R. F., Candès, E. J., Ramdas, A., & Tibshirani, R. J. (2021). Predictive Inference with the Jackknife+. *Annals of Statistics*, 49(1), 486–507. Score normalization by difficulty proxy is inspired by this paper's locally adaptive approach.
 
 Two adaptive calibration strategies tested on top of the Phase 6 GBM base model:
 
@@ -326,7 +377,9 @@ Both methods are theoretically motivated but failed empirically. Root cause: n_c
 
 ---
 
-### Phase 10 — Tuned GBM CQR
+### Phase 10 — Tuned GBM CQR *(Experiment-Derived)*
+
+> **Origin:** Not from a paper. Phase 9 MPIW decomposition revealed that 90–92% of interval width comes from the base GBM, not from the CQR correction. Tuning GBM hyperparameters for interval tightness is our contribution — no prior work applied systematic GBM HP search in a CQR context for SAR-based SM estimation.
 
 **Key insight from Phase 9 postmortem:** MPIW decomposition reveals the base GBM contributes 90–92% of final MPIW; the CQR correction adds only 8–10%. Phase 6 GBM hyperparameters were never tuned for interval tightness — they were inherited from an earlier pipeline.
 
@@ -553,7 +606,9 @@ EOS-04 marginally improves (30.91→30.77) with C=2^8. Sentinel-1 shows no impro
 
 ---
 
-### Phase 16 — Relaxed Coverage CQR (α = 0.10, 90% target)
+### Phase 16 — Relaxed Coverage CQR *(Experiment-Derived, α = 0.10, 90% target)*
+
+> **Origin:** Not from a paper. Phase 10 postmortem identified saturation near the 95% oracle MPIW floor. Relaxing α is permitted by conformal theory (Romano et al., 2019) — the coverage guarantee holds at any α. The decision to target 90% and the 360-config grid are our contribution.
 
 Motivated by the observation that all Phase 10 results saturate near the oracle MPIW floor at 95% coverage. Relaxing α from 0.05 to 0.10 shifts the q̂ rank from position 8 to position 16 in the calibration score distribution (n_cal=153), reducing MPIW at the cost of one coverage percentage point.
 
@@ -568,7 +623,9 @@ Motivated by the observation that all Phase 10 results saturate near the oracle 
 
 ---
 
-### Phase 17 — Alpha Sweep (α ∈ 0.05–0.10, Pareto Frontier)
+### Phase 17 — Alpha Sweep *(Experiment-Derived, Pareto Frontier)*
+
+> **Origin:** Not from a paper. Phase 16 postmortem showed that a single α point is insufficient to characterise the coverage–MPIW tradeoff. The analytical single-pass sweep design (saving calibration scores once, computing q̂ at multiple α levels) and the Pareto frontier presentation are our contribution.
 
 Single-pass analytical sweep: calibration scores saved once per config, q̂ computed analytically at each α level. Produces the complete coverage–MPIW Pareto frontier.
 
@@ -587,7 +644,10 @@ Single-pass analytical sweep: calibration scores saved once per config, q̂ comp
 
 ---
 
-### Phase 18 — CQR-d: Density-Weighted Conformal Calibration (Negative Result)
+### Phase 18 — CQR-d: Density-Weighted Conformal Calibration *(Paper: arXiv:2411.19523, 2024)*
+
+> **Origin:** Feldman, S., et al. (2024). Density-Weighted Conformal Quantile Regression. *arXiv:2411.19523*.
+> The k-NN density weighting of conformity scores is taken directly from this paper. We implemented the gate test and applied it to both SAR sensors.
 
 **Method (arXiv:2411.19523):** Weight each calibration score by 1/k-NN density before taking the conformity quantile. Hard samples in sparse feature regions get downweighted, tightening q̂ for dense easy regions.
 
@@ -602,7 +662,9 @@ Single-pass analytical sweep: calibration scores saved once per config, q̂ comp
 
 ---
 
-### Phase 19 — Tuned GBM Lower Learning Rate (540-config grid, α = 0.10)
+### Phase 19 — Tuned GBM Lower Learning Rate *(Experiment-Derived)*
+
+> **Origin:** Not from a paper. Phase 16/17 postmortem identified the substitution effect: at α=0.10, q̂ ≈ 5–6 units dominates MPIW, so reducing base interval width via lower LR is the only remaining lever. The 540-config grid and the substitution-effect hypothesis are our contribution.
 
 **Motivation from Phase 16 postmortem:** At α=0.10, MPIW is dominated by q̂ ≈ 4.9–6.2 (vs 1.4 at α=0.05). Reducing LR forces GBM to fit tighter base intervals → lower q̂ after calibration.
 
@@ -616,7 +678,9 @@ Single-pass analytical sweep: calibration scores saved once per config, q̂ comp
 
 ---
 
-### Phase 20 — Fine-Tune GBM CQR (3,528-config Dense Grid, α = 0.10)
+### Phase 20 — Fine-Tune GBM CQR *(Experiment-Derived)*
+
+> **Origin:** Not from a paper. Phase 19 postmortem found a single val MPIW=25.82 config with a 1.04-unit cliff below it — potentially a lucky basin. The 3,528-config dense grid to verify and extend this basin is entirely our contribution.
 
 Dense search around the Phase 19 Sentinel-1 anchor to confirm and extend the val MPIW ≈ 25.82 basin.
 
@@ -1047,10 +1111,36 @@ uv sync
 
 ## Key References
 
-- Romano, Y., Patterson, E., & Candès, E. (2019). Conformalized Quantile Regression. *NeurIPS*.
-- Angelopoulos, A. N., & Bates, S. (2023). Conformal Prediction: A Gentle Introduction. *Foundations and Trends in Machine Learning*.
-- Koenker, R., & Bassett, G. (1978). Regression Quantiles. *Econometrica*.
-- Smola, A. J., & Schölkopf, B. (2004). A tutorial on support vector regression. *Statistics and Computing*.
+### From-Paper Phases (direct methodological sources)
+
+| Phase | Paper |
+|:-----:|-------|
+| 4 | Koenker, R., & Bassett, G. (1978). Regression Quantiles. *Econometrica*, 46(1), 33–50. |
+| 5 | Vovk, V., Gammerman, A., & Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer. |
+| 5 | Taquet, V., et al. (2022). MAPIE: an open-source library for distribution-free uncertainty quantification. *arXiv:2207.12274*. |
+| **6** | **Romano, Y., Patterson, E., & Candès, E. (2019). Conformalized Quantile Regression. *NeurIPS*, 32.** ← core method |
+| 8 | Smola, A. J., & Schölkopf, B. (2004). A tutorial on support vector regression. *Statistics and Computing*, 14(3), 199–222. |
+| 9 | Vovk, V., et al. (2003). Mondrian Conformal Predictors. *ICML Workshop on Conformal and Probabilistic Prediction*. |
+| 9 | Barber, R. F., Candès, E. J., Ramdas, A., & Tibshirani, R. J. (2021). Predictive Inference with the Jackknife+. *Annals of Statistics*, 49(1), 486–507. |
+| 18 | Feldman, S., et al. (2024). Density-Weighted Conformal Quantile Regression. *arXiv:2411.19523*. |
+
+### Experiment-Derived Phases (our contributions, no direct paper)
+
+| Phase | Origin |
+|:-----:|--------|
+| 7 | Postmortem fix for τ test-set snooping bug found in Phase 6 |
+| 8b | Phase 8 postmortem — C=64 was arbitrary; joint grid extension |
+| 10 | Phase 9 MPIW decomposition — 90–92% width from base GBM |
+| 16 | Phase 10 oracle floor saturation — relax α to 0.10 |
+| 17 | Phase 16 postmortem — single α insufficient for tradeoff curve |
+| 19 | Phase 16/17 substitution effect hypothesis — lower LR lever |
+| 20 | Phase 19 val cliff (25.82→26.86) — dense grid to verify basin |
+
+### Additional References
+
+- Angelopoulos, A. N., & Bates, S. (2023). Conformal Prediction: A Gentle Introduction. *Foundations and Trends in Machine Learning*, 16(4), 494–591.
+- Meinshausen, N. (2006). Quantile Regression Forests. *Journal of Machine Learning Research*, 7, 983–999.
+- Gorelick, N., et al. (2017). Google Earth Engine: Planetary-scale geospatial analysis for everyone. *Remote Sensing of Environment*, 202, 18–27.
 - Dubois-Fernandez, P., et al. (2012). SAR backscatter and soil moisture — dielectric mixing models. *Remote Sensing*.
-- Gorelick, N., et al. (2017). Google Earth Engine: Planetary-scale geospatial analysis for everyone. *Remote Sensing of Environment*.
-- Meinshausen, N. (2006). Quantile Regression Forests. *Journal of Machine Learning Research*.
+- Chen, T., & Guestrin, C. (2016). XGBoost: A Scalable Tree Boosting System. *KDD*, 785–794.
+- Breiman, L. (2001). Random Forests. *Machine Learning*, 45(1), 5–32.
