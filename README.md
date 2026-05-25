@@ -748,6 +748,62 @@ Both sensors achieve nearly identical compression from the marginal baseline, a 
 
 ---
 
+## GBM CQR — Hyperparameters & Output Parameters
+
+### Hyperparameters (Inputs to the Model)
+
+#### GBM (Gradient Boosting Machine) — trained twice per config (lo quantile + hi quantile)
+
+| Parameter | What it controls | Phase 20 values |
+|-----------|-----------------|:---------------:|
+| `learning_rate` (LR) | Step size per tree — lower = slower learning, tighter fit, slower training | 0.02, 0.025, 0.028, 0.03, 0.032, 0.035, 0.04 |
+| `n_estimators` (n) | Number of trees in the ensemble | 400, 450, 500, 550, 600, 700, 800 |
+| `tau_lo / tau_hi` (τ) | Quantile targets — lo trains the lower bound, hi trains the upper bound | (0.15, 0.85) or (0.20, 0.80) |
+| `min_samples_leaf` (msl) | Minimum samples per leaf node — higher = smoother quantile surfaces, less overfitting | 15, 18, 20, 22, 25, 30 |
+| `max_depth` (d) | Max depth per tree — controls model complexity | 4 or 5 |
+| `subsample` (sub) | Fraction of training data used per tree (stochastic boosting) — < 1.0 adds regularisation | 0.8, 0.9, 1.0 |
+| `alpha` (α) | CQR conformalization level — 1−α = target coverage | fixed 0.10 → 90% coverage |
+
+#### Data Split (Fixed, not tuned)
+
+| Split | Fraction | n (Sentinel-1) | Purpose |
+|-------|:--------:|:--------------:|---------|
+| Train | 70% | ~1067 | Fit GBM weights |
+| Val | 10% | ~152 | Hyperparameter selection only — never touches calibration |
+| Cal | 10% | ~153 | Compute conformity scores → q̂ only |
+| Test | 10% | ~153 | Final PICP / MPIW evaluation — never seen during training or selection |
+
+### Output / Evaluation Parameters
+
+| Parameter | Formula | Meaning |
+|-----------|---------|---------|
+| **q̂** | `quantile({max(ŷ_lo−yᵢ, yᵢ−ŷ_hi)}ᵢ, 1−α, method='higher')` | CQR correction term — added/subtracted from base bounds to achieve coverage |
+| **base_width** | `mean(ŷ_hi − ŷ_lo)` on test set (before CQR) | Raw GBM interval width before conformalization |
+| **PICP** | `mean(ŷ_lo−q̂ ≤ y_test ≤ ŷ_hi+q̂)` | % of test samples whose true SM falls inside the final interval — higher is better (target ≥ 90%) |
+| **MPIW** | `mean((ŷ_hi+q̂) − (ŷ_lo−q̂))` = `base_width + 2·q̂` | Average interval width in SM% units — lower is better (target ≤ 26) |
+
+### How They Connect
+
+```
+GBM_lo (τ=0.15) ──→ ŷ_lo(x)  ─┐
+                                 ├──→ score_i = max(ŷ_lo − y,  y − ŷ_hi)
+GBM_hi (τ=0.85) ──→ ŷ_hi(x)  ─┘              ↓
+                                     q̂ = quantile(scores, 0.90)   [on cal set]
+                                              ↓
+                         Final PI = [ŷ_lo − q̂,  ŷ_hi + q̂]       [on test set]
+                                     ↓               ↓
+                                  MPIW            PICP
+                              (width, ↓ better)  (coverage, ↑ better)
+```
+
+### Key Tradeoff — Substitution Effect
+
+Lower LR + higher n → tighter base intervals (smaller `base_width`) → BUT hard samples (irrigation, senescence, tillage events — SAR-opaque) produce large conformity scores → q̂ rises → partially cancels the base-width gain.
+
+The winning Phase 20 configs (e.g. LR=0.025, n=800, msl=25) found the sweet spot where base-width reduction outweighs q̂ inflation, achieving test MPIW=25.27 at test PICP=90.2%.
+
+---
+
 ## Theoretical Validity
 
 Conformal prediction provides the finite-sample marginal coverage guarantee:
