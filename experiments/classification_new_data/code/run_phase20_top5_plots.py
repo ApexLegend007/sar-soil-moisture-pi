@@ -1,8 +1,8 @@
 """
-Phase 20 — Highest-PICP Sentinel-1 configs (test PICP>=90%, test MPIW 25-26)
-Plots the two configs with the highest test PICP in the target window:
-  - 92.8%: LR=0.032, n=450, msl=22, d=4, sub=1.0  → test MPIW=25.85
-  - 92.2%: LR=0.025, n=550, msl=25, d=4, sub=1.0  → test MPIW=25.79
+Phase 20 — Key Sentinel-1 configs (test PICP>=90%, test MPIW 25-26)
+  - 92.8%: LR=0.032, n=450, msl=22, d=4, sub=1.0  → test MPIW=25.85  (highest PICP)
+  - 92.2%: LR=0.025, n=550, msl=25, d=4, sub=1.0  → test MPIW=25.79  (highest PICP #2)
+  - 90.2%: LR=0.025, n=800, msl=25, d=4, sub=1.0  → test MPIW=25.27  (lowest MPIW)
 """
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -28,10 +28,11 @@ RANDOM_SEED = 42
 Y_COL       = 'SM1 (%)'
 ALPHA       = 0.10
 
-# Two highest-PICP configs in the test PICP 90-95% & test MPIW 25-26 window
+# Key configs: highest PICP + lowest MPIW in the test PICP 90-95% & test MPIW 25-26 window
 CONFIGS = [
     {'label': 'PICP_92.8pct', 'lr':0.032,'n':450,'tau_lo':0.15,'tau_hi':0.85,'msl':22,'depth':4,'sub':1.0},
     {'label': 'PICP_92.2pct', 'lr':0.025,'n':550,'tau_lo':0.15,'tau_hi':0.85,'msl':25,'depth':4,'sub':1.0},
+    {'label': 'MPIW_25.27',   'lr':0.025,'n':800,'tau_lo':0.15,'tau_hi':0.85,'msl':25,'depth':4,'sub':1.0},
 ]
 
 
