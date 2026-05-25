@@ -1,0 +1,21 @@
+{
+    "method": "Tube Loss ANN [direct]",
+    "paper": "Rana et al. arXiv:2412.06853; github.com/ltpritamanand/tube_loss",
+    "alpha": 0.1,
+    "variant": "direct",
+    "q_hat": null,
+    "params": {
+        "hidden": 256,
+        "r": 0.3,
+        "delta": 0.0,
+        "label": "h256_r0.3_d0.0"
+    },
+    "test": {
+        "PICP": 0.8366,
+        "MPIW": 124.8695,
+        "CWC": 56.219567,
+        "IS": 139.7835
+    },
+    "y_range": 55.1,
+    "n_test": 153
+}

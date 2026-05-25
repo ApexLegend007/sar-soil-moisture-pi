@@ -1,0 +1,21 @@
+{
+    "method": "Tube Loss ANN [conformal]",
+    "paper": "Rana et al. arXiv:2412.06853; github.com/ltpritamanand/tube_loss",
+    "alpha": 0.1,
+    "variant": "conformal",
+    "q_hat": 3.0832,
+    "params": {
+        "hidden": 512,
+        "r": 0.5,
+        "delta": 0.02,
+        "label": "h512_r0.5_d0.02"
+    },
+    "test": {
+        "PICP": 0.922,
+        "MPIW": 30.4937,
+        "CWC": 0.609062,
+        "IS": 36.8984
+    },
+    "y_range": 50.0667,
+    "n_test": 205
+}

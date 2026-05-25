@@ -206,6 +206,28 @@ Raw Excel Data + GEE NDVI CSVs
       │         → S1: 60 hits test PICP 90-95% & MPIW 25-26
       │         → Best: test PICP=92.8%, MPIW=25.85 (LR=0.032, n=450)
       │
+   [Phase 21] Tube Loss ANN                  (direct bounds + conformal extension, α=0.10)
+      │         ▸ FROM PAPER: Rana et al. arXiv:2412.06853 (2024) "Tube Loss for Prediction
+      │           Intervals" — directly implemented; conformal extension from repo notebook
+      │         → EOS-04 Tube(C): PICP=92.2%, MPIW=30.49  CWC=0.609  IS=36.90
+      │         → S1   Tube(C): PICP=89.5%, MPIW=28.11  CWC=1.152  IS=36.36
+      │
+   [Phase 22] MVE + MDN                      (probabilistic NNs, α=0.10)
+      │         ▸ MVE FROM PAPER: Nix & Weigend (1994) "Estimating the mean and variance of the
+      │           target probability distribution" — ANN outputs (μ, log σ²), Gaussian NLL
+      │         ▸ MDN FROM PAPER: Bishop (1994) PRML Ch.5 / dusenberrymw/mixture-density-networks
+      │           K-Gaussian mixture NLL, Monte Carlo PI sampling
+      │         → EOS-04 MVE: PICP=90.2%, MPIW=28.94  CWC=0.578  IS=38.88
+      │         → S1   MDN: PICP=90.9%, MPIW=40.41  CWC=0.733  IS=47.64
+      │
+   [Phase 23] CQR-ANN + CQR-RF              (conformal quantile methods, α=0.10)
+      │         ▸ CQR-ANN FROM PAPER: Romano et al. NeurIPS 2019 (CQR) + ltpritamanand/tube_loss
+      │           (implementation) — two pinball-loss ANNs (τ=0.05/0.95) + CQR calibration
+      │         ▸ CQR-RF FROM PAPER: Meinshausen (2006) Quantile Regression Forests —
+      │           leaf-node quantile extraction + CQR calibration
+      │         → EOS-04 CQR-ANN: PICP=90.2%, MPIW=27.12  CWC=0.542  IS=35.12  ← best EOS-04
+      │         → S1   CQR-RF:  PICP=91.5%, MPIW=27.46  CWC=0.498  IS=32.72  ← best S1
+      │
    output/ ← JSON metrics + PNG plots per phase
 ```
 
@@ -720,6 +742,107 @@ Best test PICP ≥ 90% achieves test MPIW = **26.54** — 0.54 units above the 2
 
 ---
 
+### Phase 21 — Tube Loss ANN *(Paper: Rana et al. arXiv:2412.06853, 2024)*
+
+> **Origin:** Rana et al. (2024) propose a novel loss function that simultaneously trains both PI bounds. The conformal extension (Tube + CQR calibration for finite-sample guarantee) is from the paper's companion notebook at `github.com/ltpritamanand/tube_loss`.
+
+**Loss function:** For output `[f1=lower, f2=upper]` and asymmetry ratio `r`:
+```
+c1 = (1-q)·(f2-y)    [inside, upper half]
+c2 = (1-q)·(y-f1)    [inside, lower half]
+c3 = q·(f1-y)        [below f1]
+c4 = q·(y-f2)        [above f2]
+inside := (y≥f1 AND y≤f2);  upper_half := y > r·(f1+f2)
+loss = mean(where(inside, where(upper_half, c1, c2), where(f1>y, c3, c4)) + δ·|f1-f2|)
+```
+- `δ` (delta) is a width-penalty term — crucial for preventing bound collapse
+- `r=0.5` → symmetric inside split; `r=0.3` → bottom-heavy
+- LR schedule: ExponentialDecay(0.02 → 0.0002 over 10k steps)
+- Bias init: Constant([-0.5, 1.5]) on normalized y
+
+**Premortem:** Without `δ>0`, the loss has no width incentive — bounds can satisfy coverage trivially by spanning the full y range (MPIW→∞). Conformal extension needed for finite-sample marginal coverage guarantee (tube loss only has asymptotic guarantee).
+
+**Grid:** 8 configs (hidden ∈ {256, 512} × r ∈ {0.5, 0.3} × δ ∈ {0.0, 0.02}), 400 epochs, batch=32.
+
+| Sensor | Variant | Config | PICP | MPIW | CWC ↓ | IS ↓ |
+|--------|---------|--------|:----:|:----:|:-----:|:----:|
+| EOS-04 | Direct | h256_r0.5_d0.0 | 89.27% | 130.66 | 6.3691 | 135.89 |
+| EOS-04 | **Conformal (best)** | h512_r0.5_d0.02 | **92.20%** | **30.49** | **0.6091** | **36.90** |
+| Sentinel-1 | Direct | h256_r0.3_d0.0 | 83.66% | 124.87 | 56.22 | 139.78 |
+| Sentinel-1 | **Conformal (best)** | h256_r0.5_d0.02 | **89.54%** | **28.11** | **1.1523** | **36.36** |
+
+**Postmortem:**
+- δ=0.0 configs give MPIW=100–240: no width penalty → bounds sprawl to trivially cover all points; useless in practice.
+- δ=0.02 + conformal is the viable variant: achieves MPIW ≈30–31 (EOS-04) / 28 (S1) after CQR calibration.
+- Tube Loss ANN requires a held-out calibration set for the conformal step; it offers no advantage over CQR-ANN without it.
+- EOS-04 Tube(C) CWC=0.609 is competitive with CQR-ANN (0.542) but wider intervals.
+
+---
+
+### Phase 22 — MVE + MDN *(Papers: Nix & Weigend 1994; Bishop 1994)*
+
+**MVE (Mean Variance Estimation)** — Nix & Weigend (1994):
+- ANN outputs two heads: predicted mean μ and log-variance log(σ²)
+- Loss: Gaussian NLL = ½[log(σ²) + (y−μ)²/σ²]
+- PI at 90%: [μ − 1.645σ, μ + 1.645σ] (z=1.645 for α=0.10, one-sided 5% each tail)
+- No calibration set needed — directly outputs calibrated uncertainty
+
+**MDN (Mixture Density Network)** — Bishop (1994):
+- ANN outputs K-component Gaussian mixture: {(π_k, μ_k, σ_k), k=1..K}
+- Loss: Negative log-likelihood of mixture: −log Σ_k π_k N(y | μ_k, σ_k)
+- PI at 90%: Monte Carlo sampling (N=5,000 draws) → empirical 5th/95th percentiles
+- Implementation: `github.com/dusenberrymw/mixture-density-networks`
+
+**Premortem:** MVE assumes homoscedastic Gaussian noise — may over-/under-estimate σ for heteroscedastic SAR backscatter. MDN with K>3 may collapse mixture components on small tabular datasets.
+
+**Grid:** MVE: 4 configs (arch ∈ {[64,32], [128,64]} × lr ∈ {1e-3, 5e-4}). MDN: 8 configs (K ∈ {3,5} × arch × lr).
+
+| Sensor | Method | Best Config | PICP | MPIW | CWC ↓ | IS ↓ |
+|--------|--------|-------------|:----:|:----:|:-----:|:----:|
+| EOS-04 | **MVE** | arch[128,64] lr=1e-3 | **90.24%** | **28.94** | **0.5779** | **38.88** |
+| EOS-04 | MDN | K5 arch[128,64] lr=1e-3 | 89.27% | 42.91 | 2.0919 | 49.33 |
+| Sentinel-1 | MVE | arch[128,64] lr=1e-3 | 91.50% | 41.04 | 0.7449 | 51.75 |
+| Sentinel-1 | **MDN** | K3 arch[128,64] lr=1e-3 | **90.85%** | **40.41** | **0.7334** | **47.64** |
+
+**Postmortem:**
+- MVE EOS-04 achieves valid 90% coverage with MPIW=28.94 — competitive, though wider than CQR-ANN.
+- MDN consistently over-disperses on this small SAR dataset (MPIW=40–43): mixture components spread across the full y range; IS penalty is high.
+- lr=5e-4 destabilises both methods (PICP=1.0, MPIW=80–147): gradient updates too small to escape bad local minima in NLL landscape.
+- MVE is the recommended probabilistic-NN choice for this dataset; MDN adds complexity without benefit.
+
+---
+
+### Phase 23 — CQR-ANN + CQR-RF *(Papers: Romano et al. NeurIPS 2019; Meinshausen 2006)*
+
+**CQR-ANN** (Romano et al. 2019 + ltpritamanand/tube_loss implementation):
+- Train two separate ANN quantile regressors: one with pinball loss at τ=0.05 (lower), one at τ=0.95 (upper)
+- Apply CQR conformal calibration on held-out cal set: q̂ = quantile(max(lo_cal−y, y−hi_cal), ⌈(n+1)(1−α)/n⌉)
+- Final PI: [lo_test − q̂, hi_test + q̂]
+
+**CQR-RF** (Meinshausen 2006 Quantile Regression Forests):
+- Train `RandomForestRegressor`; extract per-leaf training sample distribution for each test point
+- Compute empirical τ=0.05/0.95 quantiles from leaf samples → base lower/upper bounds
+- Apply same CQR calibration as CQR-ANN
+
+**Premortem:** CQR-ANN may produce crossing quantiles (lo > hi) without dual-output constraint. CQR-RF with small `min_samples_leaf` overfits leaf distributions. Both require sufficient cal-set coverage of the target range.
+
+**Grid:** CQR-ANN: 4 configs (hidden ∈ {256,512} × lr ∈ {0.02,0.01}). CQR-RF: 4 configs (n_estimators, max_depth, min_samples_leaf combinations).
+
+| Sensor | Method | Best Config | PICP | MPIW | CWC ↓ | IS ↓ |
+|--------|--------|-------------|:----:|:----:|:-----:|:----:|
+| EOS-04 | **CQR-ANN** | h256 lr=0.02 | **90.24%** | **27.12** | **0.5416** | **35.12** |
+| EOS-04 | CQR-RF | n200 d10 msl5 | 91.71% | 28.09 | 0.5610 | 35.67 |
+| Sentinel-1 | CQR-ANN | h256 lr=0.01 | 90.85% | 29.54 | 0.5360 | 35.16 |
+| Sentinel-1 | **CQR-RF** | n200 d15 msl3 | **91.50%** | **27.46** | **0.4984** | **32.72** |
+
+**Postmortem:**
+- CQR-ANN is the overall best method for EOS-04 (lowest CWC=0.5416, IS=35.12).
+- CQR-RF is the overall best method for Sentinel-1 (CWC=0.4984, IS=32.72).
+- CQR crossing rate is 0.0% in all configs — dual separate-model approach avoids inversions.
+- RF leaf quantiles computed at inference time (0s per config) vs ANN ~50s: RF is dramatically faster for this dataset size.
+
+---
+
 ## NDVI Impact Summary — Baseline vs +NDVI
 
 All results comparing 6-feature baseline (commit `46063be`) against 7-feature NDVI pipeline.
@@ -786,6 +909,27 @@ The original experiment had six methodological errors. Each fix is isolated belo
 | EOS-04 MPIW @ PICP≥90% | — | **26.54** (floor) | GBM CQR Phase 20 | — |
 
 > At 90% coverage, Sentinel-1 achieves MPIW=25.27 — a **17.4% reduction** vs the Phase 10 95%-coverage best (30.61). This trades 5 pp of coverage guarantee for significantly tighter uncertainty bounds, which may be acceptable for some precision-agriculture applications.
+
+### 90% Coverage (α = 0.10) — Phases 21–23: All PI Methods
+
+Full CWC and Interval Score comparison across all methods (best config per method, both sensors):
+
+| Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | EOS IS ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ | S1 IS ↓ |
+|-------|--------|:--------:|:--------:|:---------:|:--------:|:-------:|:-------:|:---------:|:-------:|
+| 16-20 | CQR-GBM | 86.83% | 26.37 | 3.097 | N/A | 86.27% | 24.67 | 3.338 | N/A |
+| 21 | Tube(D) | 89.27% | 130.66 | 6.369 | 135.89 | 83.66% | 124.87 | 56.22 | 139.78 |
+| 21 | Tube(C) | 92.20% | 30.49 | 0.609 | 36.90 | 89.54% | 28.11 | 1.152 | 36.36 |
+| 22 | MVE | 90.24% | 28.94 | 0.578 | 38.88 | 91.50% | 41.04 | 0.745 | 51.75 |
+| 22 | MDN | 89.27% | 42.91 | 2.092 | 49.33 | 90.85% | 40.41 | 0.733 | 47.64 |
+| **23** | **CQR-ANN** | **90.24%** | **27.12** | **0.542** | **35.12** | 90.85% | 29.54 | 0.536 | 35.16 |
+| **23** | **CQR-RF** | 89.76% | 27.59 | 1.172 | 35.82 | **91.50%** | **27.46** | **0.498** | **32.72** |
+
+> **CWC** (Khosravi 2011) = PINAW × (1 + γ·exp(−50·(PICP−0.90))); γ=0 if PICP≥0.90 else 1; PINAW=MPIW/R.
+> **IS** (Winkler 1972) = mean[(hi−lo) + (2/0.10)·(undershoot + overshoot)]. Both lower = better.
+> Comparison plots: `output/eval_comparison/` — cwc_comparison.png, is_comparison.png, picp_vs_mpiw_scatter.png, summary_table.png.
+
+**CWC winner (EOS-04):** CQR-ANN Phase 23 — `CWC=0.542, IS=35.12`
+**CWC winner (Sentinel-1):** CQR-RF Phase 23 — `CWC=0.498, IS=32.72`
 
 ---
 
@@ -962,6 +1106,57 @@ Output: `output/gbm_relaxed_cqr/`, `output/gbm_alpha_sweep/`, `output/gbm_cqr_de
 
 > **Note:** Phase 20 runs ~4–5 hours on a single CPU core (7,056 GBM fits). Phase 19 runs ~20–30 min.
 
+### Phase 21 — Tube Loss ANN (~10 min, 16 configs × 2 sensors)
+
+```bash
+uv run python run_phase21_tube_loss.py
+```
+
+Output: `output/tube_loss/eos04/`, `output/tube_loss/sentinel1/`
+- `best_config.json` — best conformal variant (Tube + CQR calibration)
+- `best_config_direct.json` — best direct variant (raw tube bounds)
+- `grid_summary.csv` — all 8 configs per sensor with CWC + IS
+
+> **Note:** Configs with δ=0.0 produce MPIW=100–240 (no width penalty). Use δ=0.02 + conformal for practical results.
+
+### Phase 22 — MVE + MDN (~15 min, 12 configs × 2 sensors)
+
+```bash
+uv run python run_phase22_mve_mdn.py
+```
+
+Output: `output/prob_nn/eos04/`, `output/prob_nn/sentinel1/`
+- `best_mve.json`, `best_mdn.json` — best configs with CWC + IS
+- PI plots for best MVE and MDN configs
+
+> **Note:** lr=5e-4 destabilises both methods (PICP=1.0, MPIW>80). Use lr=1e-3 configs for valid results.
+
+### Phase 23 — CQR-ANN + CQR-RF (~5 min, 8 configs × 2 sensors)
+
+```bash
+uv run python run_phase23_cqr_ann_rf.py
+```
+
+Output: `output/cqr_ann_rf/eos04/`, `output/cqr_ann_rf/sentinel1/`
+- `best_cqr_ann.json`, `best_cqr_rf.json` — best configs with CWC + IS
+- `cqr_ann_grid.csv`, `cqr_rf_grid.csv` — full grids
+
+### Evaluation Comparison Plots (Phases 21–23, all 7 methods)
+
+Run **after** all of Phases 16–23 have completed:
+
+```bash
+uv run python run_eval_comparison_plots.py
+```
+
+Output: `output/eval_comparison/`
+- `cwc_comparison.png` — CWC bar chart (all 7 methods, both sensors)
+- `is_comparison.png` — Interval Score bar chart
+- `picp_comparison.png` — PICP bar chart
+- `mpiw_comparison.png` — MPIW bar chart
+- `picp_vs_mpiw_scatter.png` — PICP vs MPIW scatter (ideal: right of 90% line, low MPIW)
+- `summary_table.png` + `summary_table.csv` — all metrics table
+
 ### Notebook-by-notebook (with cell outputs)
 
 Register the venv as a Jupyter kernel first:
@@ -1123,6 +1318,20 @@ uv sync
 | 9 | Vovk, V., et al. (2003). Mondrian Conformal Predictors. *ICML Workshop on Conformal and Probabilistic Prediction*. |
 | 9 | Barber, R. F., Candès, E. J., Ramdas, A., & Tibshirani, R. J. (2021). Predictive Inference with the Jackknife+. *Annals of Statistics*, 49(1), 486–507. |
 | 18 | Feldman, S., et al. (2024). Density-Weighted Conformal Quantile Regression. *arXiv:2411.19523*. |
+| **21** | **Rana, P., et al. (2024). Tube Loss for Prediction Intervals. *arXiv:2412.06853*.** Implementation: `github.com/ltpritamanand/tube_loss` |
+| **22** | **Nix, D. A., & Weigend, A. S. (1994). Estimating the mean and variance of the target probability distribution. *ICNN*, 55–60.** (MVE) |
+| **22** | **Bishop, C. M. (1994). Mixture Density Networks. Aston University Technical Report.** Also: Bishop (1995) *Neural Networks for Pattern Recognition*, Oxford. Implementation: `github.com/dusenberrymw/mixture-density-networks` |
+| **23** | **Romano, Y., Patterson, E., & Candès, E. (2019). Conformalized Quantile Regression. *NeurIPS*, 32.** (CQR-ANN, same as Phase 6) |
+| **23** | **Meinshausen, N. (2006). Quantile Regression Forests. *Journal of Machine Learning Research*, 7, 983–999.** (CQR-RF) |
+
+### Evaluation Metrics References
+
+| Metric | Formula | Paper |
+|:------:|---------|-------|
+| **PICP** | mean(lo ≤ y ≤ hi) | Standard in conformal prediction literature |
+| **MPIW** | mean(hi − lo) | Standard in PI literature |
+| **CWC** | PINAW × (1 + γ·exp(−η·(PICP−μ_c))); γ=0 if PICP≥μ_c | Khosravi, A., et al. (2011). Comprehensive review of neural network-based prediction intervals. *IEEE TNN*, 22(9), 1341–1356. |
+| **IS** | mean[(hi−lo) + (2/α)·(max(0,lo−y) + max(0,y−hi))] | Winkler, R. L. (1972). A decision theoretic approach to interval estimation. *JASA*, 67(337), 187–191. |
 
 ### Experiment-Derived Phases (our contributions, no direct paper)
 

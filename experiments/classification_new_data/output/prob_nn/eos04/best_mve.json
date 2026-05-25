@@ -1,0 +1,18 @@
+{
+    "method": "MVE",
+    "paper": "Nix & Weigend 1994",
+    "alpha": 0.1,
+    "params": {
+        "arch": "[128,64]",
+        "lr": 0.001,
+        "label": "MVE_arch[128,64]_lr0.001"
+    },
+    "test": {
+        "PICP": 0.9024,
+        "MPIW": 28.9359,
+        "CWC": 0.577947,
+        "IS": 38.8768
+    },
+    "y_range": 50.0667,
+    "n_test": 205
+}

@@ -1,0 +1,21 @@
+{
+    "method": "CQR-RF (Quantile Forest)",
+    "paper": "Meinshausen 2006",
+    "tau_lo": 0.05,
+    "tau_hi": 0.95,
+    "alpha": 0.1,
+    "q_hat": 0.43333333333333,
+    "params": {
+        "n_estimators": 200,
+        "max_depth": 15,
+        "min_samples_leaf": 3,
+        "label": "RF_n200_d15_msl3"
+    },
+    "test": {
+        "PICP": 0.8976,
+        "MPIW": 27.5925,
+        "CWC": 1.172496,
+        "IS": 35.8241
+    },
+    "y_range": 50.0667
+}

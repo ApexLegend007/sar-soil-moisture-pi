@@ -1,0 +1,20 @@
+{
+    "method": "CQR-ANN",
+    "paper": "Romano et al. NeurIPS 2019; ltpritamanand/tube_loss",
+    "tau_lo": 0.05,
+    "tau_hi": 0.95,
+    "alpha": 0.1,
+    "q_hat": 1.050826072692871,
+    "params": {
+        "hidden": 256,
+        "lr": 0.01,
+        "label": "ANN_h256_lr0.01"
+    },
+    "test": {
+        "PICP": 0.9085,
+        "MPIW": 29.535,
+        "CWC": 0.536025,
+        "IS": 35.1597
+    },
+    "y_range": 55.1
+}

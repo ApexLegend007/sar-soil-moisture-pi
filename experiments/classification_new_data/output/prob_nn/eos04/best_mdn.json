@@ -1,0 +1,20 @@
+{
+    "method": "MDN",
+    "K": 5,
+    "paper": "Bishop 1994 PRML; github.com/dusenberrymw/mixture-density-networks",
+    "alpha": 0.1,
+    "params": {
+        "K": 5,
+        "arch": "[128,64]",
+        "lr": 0.001,
+        "label": "MDN_K5_arch[128,64]_lr0.001"
+    },
+    "test": {
+        "PICP": 0.8927,
+        "MPIW": 42.914,
+        "CWC": 2.091855,
+        "IS": 49.3292
+    },
+    "y_range": 50.0667,
+    "n_test": 205
+}
