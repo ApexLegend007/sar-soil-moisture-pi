@@ -10,27 +10,35 @@
 
 ### 95% Coverage (α = 0.05) — Phases 1–10
 
-| Sensor | Best PICP | Best MPIW | Method | Phase |
-|--------|:---------:|:---------:|--------|:-----:|
-| EOS-04 | **0.9659** | 35.70 | GBM CQR | 6 |
-| EOS-04 | 0.9561 | **30.77** | QSVR (C=2^8, γ=2^0) | 8b |
-| EOS-04 | 0.9561 | **33.40** | Tuned GBM CQR | 10 |
-| Sentinel-1 | **0.9804** | 41.77 | ANN CQR dual-output | 6 |
-| Sentinel-1 | 0.9542 | 35.75 | GBM CQR baseline | 6 |
-| Sentinel-1 | **0.9608** | **30.61** | Tuned GBM CQR (τ=0.1/0.9) | 10 |
+| Sensor | Best PICP | Best MPIW | Best CWC | Method | Phase |
+|--------|:---------:|:---------:|:--------:|--------|:-----:|
+| EOS-04 | **96.59%** | 35.70 | 0.7130 | GBM CQR | 6 |
+| EOS-04 | 95.61% | **30.77** | **0.6146** | QSVR (C=2^8, γ=2^0) | 8b |
+| Sentinel-1 | **98.04%** | 41.77 | 0.7581 | ANN CQR dual-output | 6 |
+| Sentinel-1 | 96.08% | **30.61** | **0.5555** | Tuned GBM CQR (τ=0.1/0.9) | 10 |
 
-> All intervals 95% conformalized (α=0.05). PICP ≥ 0.95 is the validity threshold. Phase 10 reduces S1 MPIW from 35.75→30.61 (−14.4%) and EOS-04 MPIW from 35.70→33.40 (−6.5%) vs Phase 6 GBM CQR baseline.
+> All intervals 95% conformalized (α=0.05). CWC uses μ_c=0.95. Phase 10 reduces S1 MPIW: 35.75→**30.61** (−14.4%) and EOS-04 MPIW: 35.70→30.77 (−13.8% via QSVR Ph8b).
 
-### 90% Coverage (α = 0.10) — Phases 16–20
+### 90% Coverage (α = 0.10) — Phases 16–23 (valid window: PICP 90-95%)
 
-| Sensor | test PICP | test MPIW | Method | Phase | Config |
-|--------|:---------:|:---------:|--------|:-----:|--------|
-| Sentinel-1 | **0.9281** | 25.85 | GBM CQR fine-tune | 20 | LR=0.032, n=450, msl=22, d=4 |
-| Sentinel-1 | **0.9216** | 25.79 | GBM CQR fine-tune | 20 | LR=0.025, n=550, msl=25, d=4 |
-| Sentinel-1 | 0.9020 | **25.27** | GBM CQR fine-tune | 20 | LR=0.025, n=800, msl=25, d=4 |
-| EOS-04 | 0.9024 | 26.54 | GBM CQR fine-tune | 20 | closest — MPIW floor at 90% coverage |
+> **Valid range = PICP ∈ [90%, 95%]**: methods outside are shown faded in comparison plots.
 
-> α=0.10 (90% target coverage). Phase 20 dense fine-tune grid (3,528 configs/sensor) around the Phase 19 anchor. Sentinel-1: **60 configs** achieve test PICP ∈ [90–95%] AND test MPIW ∈ [25–26] simultaneously. EOS-04 floors at test MPIW=26.54 when test PICP ≥ 90% — the hard-sample physical limit for this sensor.
+| Sensor | Method | Phase | PICP | MPIW | **CWC ↓** | **IS ↓** | Valid? |
+|--------|--------|:-----:|:----:|:----:|:---------:|:--------:|:------:|
+| EOS-04 | CQR-GBM fine-tune | 20 | 86.83% | 26.37 | 3.097 | N/A | ✗ |
+| EOS-04 | Tube(C) | 21 | 92.20% | 30.49 | 0.609 | 36.90 | ✓ |
+| EOS-04 | MVE | 22 | 90.24% | 28.94 | 0.578 | 38.88 | ✓ |
+| EOS-04 | MDN | 22 | 89.27% | 42.91 | 2.092 | 49.33 | ✗ |
+| **EOS-04** | **CQR-ANN** | **23** | **90.24%** | **27.12** | **0.542** | **35.12** | **✓ ★** |
+| EOS-04 | CQR-RF | 23 | 89.76% | 27.59 | 1.172 | 35.82 | ✗ |
+| Sentinel-1 | CQR-GBM fine-tune | 20 | 86.27% | 24.67 | 3.338 | N/A | ✗ |
+| Sentinel-1 | Tube(C) | 21 | 89.54% | 28.11 | 1.152 | 36.36 | ✗ |
+| Sentinel-1 | MVE | 22 | 91.50% | 41.04 | 0.745 | 51.75 | ✓ |
+| Sentinel-1 | MDN | 22 | 90.85% | 40.41 | 0.733 | 47.64 | ✓ |
+| Sentinel-1 | CQR-ANN | 23 | 90.85% | 29.54 | 0.536 | 35.16 | ✓ |
+| **Sentinel-1** | **CQR-RF** | **23** | **91.50%** | **27.46** | **0.498** | **32.72** | **✓ ★** |
+
+> ★ = best within valid 90-95% PICP window per sensor. CWC (Khosravi 2011) and IS (Winkler 1972) both lower=better. Comparison plots: `output/eval_comparison/`.
 
 ---
 
@@ -128,7 +136,7 @@ NDVI is retrieved from **Sentinel-2 SR Harmonized** (`COPERNICUS/S2_SR_HARMONIZE
 
 ---
 
-## Experimental Pipeline — All 10 Phases
+## Experimental Pipeline — All Phases (1–23)
 
 ```
 Raw Excel Data + GEE NDVI CSVs
@@ -910,26 +918,47 @@ The original experiment had six methodological errors. Each fix is isolated belo
 
 > At 90% coverage, Sentinel-1 achieves MPIW=25.27 — a **17.4% reduction** vs the Phase 10 95%-coverage best (30.61). This trades 5 pp of coverage guarantee for significantly tighter uncertainty bounds, which may be acceptable for some precision-agriculture applications.
 
-### 90% Coverage (α = 0.10) — Phases 21–23: All PI Methods
+### Complete CWC & IS — All Phases, Both Sensors
 
-Full CWC and Interval Score comparison across all methods (best config per method, both sensors):
+> **α=0.05 phases** (1–10): μ_c=0.95 for CWC. IS not stored (per-sample predictions not saved).
+> **α=0.10 phases** (16–23): μ_c=0.90 for CWC. IS stored for Phases 21-23.
+> Valid window for 90% phases: **PICP ∈ [90%, 95%]** — methods outside shown as ✗.
 
-| Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | EOS IS ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ | S1 IS ↓ |
-|-------|--------|:--------:|:--------:|:---------:|:--------:|:-------:|:-------:|:---------:|:-------:|
-| 16-20 | CQR-GBM | 86.83% | 26.37 | 3.097 | N/A | 86.27% | 24.67 | 3.338 | N/A |
-| 21 | Tube(D) | 89.27% | 130.66 | 6.369 | 135.89 | 83.66% | 124.87 | 56.22 | 139.78 |
-| 21 | Tube(C) | 92.20% | 30.49 | 0.609 | 36.90 | 89.54% | 28.11 | 1.152 | 36.36 |
-| 22 | MVE | 90.24% | 28.94 | 0.578 | 38.88 | 91.50% | 41.04 | 0.745 | 51.75 |
-| 22 | MDN | 89.27% | 42.91 | 2.092 | 49.33 | 90.85% | 40.41 | 0.733 | 47.64 |
-| **23** | **CQR-ANN** | **90.24%** | **27.12** | **0.542** | **35.12** | 90.85% | 29.54 | 0.536 | 35.16 |
-| **23** | **CQR-RF** | 89.76% | 27.59 | 1.172 | 35.82 | **91.50%** | **27.46** | **0.498** | **32.72** |
+#### α = 0.05 (95% target) — Phases 4–10
 
-> **CWC** (Khosravi 2011) = PINAW × (1 + γ·exp(−50·(PICP−0.90))); γ=0 if PICP≥0.90 else 1; PINAW=MPIW/R.
-> **IS** (Winkler 1972) = mean[(hi−lo) + (2/0.10)·(undershoot + overshoot)]. Both lower = better.
-> Comparison plots: `output/eval_comparison/` — cwc_comparison.png, is_comparison.png, picp_vs_mpiw_scatter.png, summary_table.png.
+| Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ |
+|-------|--------|:--------:|:--------:|:---------:|:-------:|:-------:|:---------:|
+| Ph4 | ANN-QR (raw pinball) | 95.25% | 43.61 | 0.8710 | 97.26% | 46.10 | 0.8367 |
+| Ph5 | MAPIE GBR | 96.85% | 39.05 | 0.7800 | 96.72% | 43.54 | 0.7902 |
+| Ph6 | GBM-CQR | 96.59% | 35.70 | 0.7130 | 95.42% | 35.75 | 0.6488 |
+| Ph6 | SVM Split Conformal | 93.17% | 38.38 | 2.6805 | 96.08% | 40.81 | 0.7407 |
+| Ph6 | ANN Split Conformal | 96.10% | 39.32 | 0.7854 | 95.42% | 39.39 | 0.7149 |
+| Ph6 | ANN-CQR | 92.20% | 41.18 | 4.1579 | 98.04% | 41.77 | 0.7581 |
+| Ph8b | **QSVR C×γ** | 95.61% | **30.77** | **0.6146** | 95.42% | 37.56 | 0.6817 |
+| Ph9 | Mondrian CQR | 93.17% | 36.80 | 2.5702 | 92.16% | 33.87 | 3.1578 |
+| **Ph10** | **Tuned GBM CQR** | 95.61% | 33.40 | 0.6671 | **96.08%** | **30.61** | **0.5555** |
 
-**CWC winner (EOS-04):** CQR-ANN Phase 23 — `CWC=0.542, IS=35.12`
-**CWC winner (Sentinel-1):** CQR-RF Phase 23 — `CWC=0.498, IS=32.72`
+#### α = 0.10 (90% target) — Phases 16–23
+
+| Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | EOS IS ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ | S1 IS ↓ | Valid |
+|-------|--------|:--------:|:--------:|:---------:|:--------:|:-------:|:-------:|:---------:|:-------:|:-----:|
+| 16-20 | CQR-GBM | 86.83% | 26.37 | 3.097 | N/A | 86.27% | 24.67 | 3.338 | N/A | ✗ |
+| 21 | Tube(D) | 89.27% | 130.66 | 6.369 | 135.89 | 83.66% | 124.87 | 56.22 | 139.78 | ✗ |
+| 21 | Tube(C) | 92.20% | 30.49 | 0.609 | 36.90 | 89.54% | 28.11 | 1.152 | 36.36 | EOS✓ |
+| 22 | MVE | 90.24% | 28.94 | 0.578 | 38.88 | 91.50% | 41.04 | 0.745 | 51.75 | ✓ |
+| 22 | MDN | 89.27% | 42.91 | 2.092 | 49.33 | 90.85% | 40.41 | 0.733 | 47.64 | S1✓ |
+| **23** | **CQR-ANN** | **90.24%** | **27.12** | **0.542★** | **35.12★** | 90.85% | 29.54 | 0.536 | 35.16 | ✓ |
+| **23** | **CQR-RF** | 89.76% | 27.59 | 1.172 | 35.82 | **91.50%** | **27.46** | **0.498★** | **32.72★** | S1✓ |
+
+> ★ = best within valid [90%, 95%] window per sensor.
+> **CWC** (Khosravi 2011): `PINAW × (1 + γ·exp(−50·(PICP−μ_c)))`; γ=0 if PICP≥μ_c, else 1; PINAW=MPIW/R.
+> **IS** (Winkler 1972): `mean[(hi−lo) + (2/α)·(max(0,lo−y) + max(0,y−hi))]`.
+
+**Overall best (90% target, valid range):**
+- **EOS-04 → CQR-ANN** (Ph23): PICP=90.2% · MPIW=27.12 · **CWC=0.542** · **IS=35.12**
+- **Sentinel-1 → CQR-RF** (Ph23): PICP=91.5% · MPIW=27.46 · **CWC=0.498** · **IS=32.72**
+
+Comparison plots in `output/eval_comparison/`: CWC/IS/MPIW/PICP bar charts (bright=valid, faded=out-of-range), `valid_range_ranking.png` (valid methods only, sorted by CWC), `picp_vs_mpiw_scatter.png` (green zone = valid region), `summary_table.png` (colour-coded, ★=best per metric).
 
 ---
 
@@ -1200,6 +1229,7 @@ major_orig/
         │   ├── constants.py                                       ← shared paths & feature column names
         │   ├── model_experiments.py                               ← all experiment classes
         │   ├── fetch_ndvi.py                                      ← GEE NDVI retrieval (Sentinel-2, SCL)
+        │   ├── eval_pi_metrics.py                                 ← shared CWC + IS metric helpers
         │   ├── run_all_enhanced.py                                ← headless Phases 1–8 runner
         │   ├── run_phases_467.py                                  ← focused CQR runner (Phases 4/6/7)
         │   ├── run_phase8b_qsvr_cgrid.py                         ← Phase 8b: QSVR C×γ joint grid
@@ -1207,6 +1237,10 @@ major_orig/
         │   ├── run_phase9c_mondrian_cqr.py                       ← Phase 9c: Mondrian CQR by crop
         │   ├── run_phase10_gbm_tuned_cqr.py                      ← Phase 10: GBM HP grid (96 configs)
         │   ├── run_phase10b_reselect.py                           ← Phase 10b: robust reselection
+        │   ├── run_phase21_tube_loss.py                           ← Phase 21: Tube Loss ANN (Rana 2024)
+        │   ├── run_phase22_mve_mdn.py                             ← Phase 22: MVE + MDN probabilistic NNs
+        │   ├── run_phase23_cqr_ann_rf.py                          ← Phase 23: CQR-ANN + CQR-RF
+        │   ├── run_eval_comparison_plots.py                       ← Cross-method CWC/IS/PICP/MPIW plots
         │   ├── run_experiments_sequence.sh                        ← notebook runner (nbconvert)
         │   │
         │   ├── exploration_eos.ipynb                              ← Phase 0: EOS-04 EDA
@@ -1253,10 +1287,28 @@ major_orig/
             ├── gbm_alpha_sweep/                       ← Phase 17: α sweep 0.05–0.10
             ├── gbm_cqr_density/                       ← Phase 18: CQR-d density-weighted
             ├── gbm_tuned_lr/                          ← Phase 19: lower-LR 540-config grid
-            └── gbm_finetune/                          ← Phase 20: 3528-config dense fine-tune
-                ├── eos04/best_config.json, grid_summary.csv
-                └── sentinel1/best_config.json, grid_summary.csv,
-                    best_picp_plots/PICP_92.8pct_*.png, PICP_92.2pct_*.png
+            ├── gbm_finetune/                          ← Phase 20: 3528-config dense fine-tune
+            │   ├── eos04/best_config.json, grid_summary.csv
+            │   └── sentinel1/best_config.json, grid_summary.csv,
+            │       best_picp_plots/PICP_92.8pct_*.png, PICP_92.2pct_*.png
+            ├── tube_loss/                             ← Phase 21: Tube Loss ANN (Rana 2024)
+            │   ├── eos04/best_config.json, best_config_direct.json, grid_summary.csv
+            │   └── sentinel1/best_config.json, best_config_direct.json, grid_summary.csv
+            ├── prob_nn/                               ← Phase 22: MVE + MDN
+            │   ├── eos04/best_mve.json, best_mdn.json, mve_grid_summary.csv, mdn_grid_summary.csv
+            │   └── sentinel1/best_mve.json, best_mdn.json, mve_grid_summary.csv, mdn_grid_summary.csv
+            ├── cqr_ann_rf/                            ← Phase 23: CQR-ANN + CQR-RF
+            │   ├── eos04/best_cqr_ann.json, best_cqr_rf.json, cqr_ann_grid.csv, cqr_rf_grid.csv
+            │   └── sentinel1/best_cqr_ann.json, best_cqr_rf.json, cqr_ann_grid.csv, cqr_rf_grid.csv
+            └── eval_comparison/                       ← All-method CWC/IS/PICP/MPIW comparison
+                ├── cwc_comparison.png                 ← CWC bar chart (valid=bright, invalid=faded)
+                ├── is_comparison.png                  ← IS bar chart
+                ├── mpiw_comparison.png                ← MPIW bar chart
+                ├── picp_comparison.png                ← PICP with 90-95% green band
+                ├── valid_range_ranking.png            ← ONLY valid 90-95% methods, ranked by CWC
+                ├── picp_vs_mpiw_scatter.png           ← PICP vs MPIW with valid zone shading
+                ├── summary_table.png                  ← colour-coded table (green=valid, ★=best)
+                └── summary_table.csv                  ← machine-readable full metric table
 ```
 
 ---

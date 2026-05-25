@@ -1,15 +1,15 @@
-Sensor,Method,PICP,MPIW,CWC,IS,Note
-EOS-04,CQR-GBM,86.83%,26.37,3.0975,N/A,"CWC approx,IS N/A"
-EOS-04,CQR-ANN,90.24%,27.12,0.5416,35.12,"CWC exact,IS exact"
-EOS-04,CQR-RF,89.76%,27.59,1.1725,35.82,"CWC exact,IS exact"
-EOS-04,Tube(D),89.27%,130.66,6.3691,135.89,"CWC exact,IS exact"
-EOS-04,Tube(C),92.20%,30.49,0.6091,36.90,"CWC exact,IS exact"
-EOS-04,MVE,90.24%,28.94,0.5779,38.88,"CWC exact,IS exact"
-EOS-04,MDN,89.27%,42.91,2.0919,49.33,"CWC exact,IS exact"
-Sentinel-1,CQR-GBM,86.27%,24.67,3.3314,N/A,"CWC approx,IS N/A"
-Sentinel-1,CQR-ANN,90.85%,29.54,0.5360,35.16,"CWC exact,IS exact"
-Sentinel-1,CQR-RF,91.50%,27.46,0.4984,32.72,"CWC exact,IS exact"
-Sentinel-1,Tube(D),83.66%,124.87,56.2196,139.78,"CWC exact,IS exact"
-Sentinel-1,Tube(C),89.54%,28.11,1.1523,36.36,"CWC exact,IS exact"
-Sentinel-1,MVE,91.50%,41.04,0.7449,51.75,"CWC exact,IS exact"
-Sentinel-1,MDN,90.85%,40.41,0.7334,47.64,"CWC exact,IS exact"
+Sensor,Method,PICP,In Range,MPIW,CWC,IS,Best
+EOS-04,CQR-GBM,86.83%,✗,26.37,3.0975,N/A,
+EOS-04,CQR-ANN,90.24%,✓,27.12,0.5416,35.12,★CWC  ★IS  ★MPIW
+EOS-04,CQR-RF,89.76%,✗,27.59,1.1725,35.82,
+EOS-04,Tube(D),89.27%,✗,130.66,6.3691,135.89,
+EOS-04,Tube(C),92.20%,✓,30.49,0.6091,36.90,
+EOS-04,MVE,90.24%,✓,28.94,0.5779,38.88,
+EOS-04,MDN,89.27%,✗,42.91,2.0919,49.33,
+Sentinel-1,CQR-GBM,86.27%,✗,24.67,3.3314,N/A,
+Sentinel-1,CQR-ANN,90.85%,✓,29.54,0.5360,35.16,
+Sentinel-1,CQR-RF,91.50%,✓,27.46,0.4984,32.72,★CWC  ★IS  ★MPIW
+Sentinel-1,Tube(D),83.66%,✗,124.87,56.2196,139.78,
+Sentinel-1,Tube(C),89.54%,✗,28.11,1.1523,36.36,
+Sentinel-1,MVE,91.50%,✓,41.04,0.7449,51.75,
+Sentinel-1,MDN,90.85%,✓,40.41,0.7334,47.64,
