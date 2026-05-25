@@ -15,7 +15,7 @@
 | EOS-04 | **96.59%** | 35.70 | 0.7130 | GBM CQR | 6 |
 | EOS-04 | 95.61% | **30.77** | **0.6146** | QSVR (C=2^8, γ=2^0) | 8b |
 | Sentinel-1 | **98.04%** | 41.77 | 0.7581 | ANN CQR dual-output | 6 |
-| Sentinel-1 | 96.08% | **30.61** | **0.5555** | Tuned GBM CQR (τ=0.1/0.9) | 10 |
+| Sentinel-1 | 96.08% | **30.61** | **0.5556** | Tuned GBM CQR (τ=0.1/0.9) | 10 |
 
 > All intervals 95% conformalized (α=0.05). CWC uses μ_c=0.95. Phase 10 reduces S1 MPIW: 35.75→**30.61** (−14.4%) and EOS-04 MPIW: 35.70→30.77 (−13.8% via QSVR Ph8b).
 
@@ -928,15 +928,22 @@ The original experiment had six methodological errors. Each fix is isolated belo
 
 | Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ |
 |-------|--------|:--------:|:--------:|:---------:|:-------:|:-------:|:---------:|
-| Ph4 | ANN-QR (raw pinball) | 95.25% | 43.61 | 0.8710 | 97.26% | 46.10 | 0.8367 |
+| Ph4 | ANN-QR (raw pinball) | 96.84% | 39.64 | 0.7917 | 96.70% | 44.56 | 0.8088 |
 | Ph5 | MAPIE GBR | 96.85% | 39.05 | 0.7800 | 96.72% | 43.54 | 0.7902 |
 | Ph6 | GBM-CQR | 96.59% | 35.70 | 0.7130 | 95.42% | 35.75 | 0.6488 |
-| Ph6 | SVM Split Conformal | 93.17% | 38.38 | 2.6805 | 96.08% | 40.81 | 0.7407 |
-| Ph6 | ANN Split Conformal | 96.10% | 39.32 | 0.7854 | 95.42% | 39.39 | 0.7149 |
-| Ph6 | ANN-CQR | 92.20% | 41.18 | 4.1579 | 98.04% | 41.77 | 0.7581 |
-| Ph8b | **QSVR C×γ** | 95.61% | **30.77** | **0.6146** | 95.42% | 37.56 | 0.6817 |
-| Ph9 | Mondrian CQR | 93.17% | 36.80 | 2.5702 | 92.16% | 33.87 | 3.1578 |
-| **Ph10** | **Tuned GBM CQR** | 95.61% | 33.40 | 0.6671 | **96.08%** | **30.61** | **0.5555** |
+| Ph6 | SVM Split Conformal | 93.17% ✗ | 38.38 | 2.6802 | 96.08% | 40.81 | 0.7407 |
+| Ph6 | ANN Split Conformal | 96.10% | 39.32 | 0.7853 | 95.42% | 39.39 | 0.7149 |
+| Ph6 | ANN-CQR | 92.20% ✗ | 41.18 | 4.1658 | 98.04% | 41.77 | 0.7581 |
+| Ph7 | CQR asym (0.01/0.96) | 88.78% ✗ | 34.52 | 16.1461 | 95.42% | 37.40 | 0.6787 |
+| Ph8 | QSVR γ grid | 95.12% | 30.91 | 0.6173 | 95.42% | 37.56 | 0.6816 |
+| Ph8b | **QSVR C×γ** | 95.61% | **30.77** | **0.6146** | 95.42% | 37.56 | 0.6816 |
+| Ph9a | CQR-d (interval-norm) | 96.10% | 35.34 | 0.7059 | 94.12% ✗ | 35.28 | 1.6356 |
+| Ph9c | Mondrian CQR | 93.17% ✗ | 36.80 | 2.5697 | 92.16% ✗ | 33.87 | 3.1615 |
+| **Ph10** | **Tuned GBM CQR** | 95.61% | 33.40 | 0.6671 | **96.08%** | **30.61** | **0.5556** |
+
+> ✗ = PICP < 95% (below μ_c=0.95 threshold); CWC penalty term γ=1 activates, inflating score.
+> Ph8 = best γ from γ-grid search; Ph8b = best (C, γ) joint search (overall QSVR winner for EOS-04).
+> Ph9a CQR-d: non-symmetric conformalized quantile with interval-normalized scores. Ph9c Mondrian: label-conditional coverage.
 
 #### α = 0.10 (90% target) — Phases 16–23
 
