@@ -46,13 +46,15 @@
 
 Soil moisture (SM) at the topsoil layer (0–5 cm) drives crop water stress, flood runoff, and drought early-warning. Traditional ground sensors are sparse and expensive. Synthetic Aperture Radar (SAR) satellites — which penetrate clouds and operate day/night — can map soil moisture at field scale from backscatter intensity. But a single point estimate ("SM = 23%") is not enough for precision agriculture or hydrological modelling. Farmers and decision systems need to know the *uncertainty*: is the true value likely between 18–28%, or between 5–45%?
 
-This paper makes three contributions:
+This paper makes four contributions:
 
 1. **A comparative study of ML and ANN models** for SAR-to-SM regression and classification using two satellites — Indian EOS-04 (RISAT-1A) and European Sentinel-1 — over an agricultural field site in Gujarat, India.
 
 2. **Integration of GEE-derived Sentinel-2 NDVI** as a 7th auxiliary feature, retrieved via per-pixel SCL cloud masking and a ±5/15-day temporal window, improving EOS-04 R² by up to 4.2% and enabling ≥0.95 conformal coverage across 5 additional method–sensor combinations.
 
-3. **A rigorous implementation of Conformalized Quantile Regression (CQR)** that produces statistically valid 95% prediction intervals, with a corrected data split, a dual-output ANN that eliminates interval inversions, and a systematic hyperparameter search that reduces S1 MPIW by 14.4% over the naïve baseline.
+3. **A rigorous implementation of Conformalized Quantile Regression (CQR) at 95% coverage** that produces statistically valid prediction intervals, with a corrected 70/10/10/10 data split, a dual-output ANN that eliminates interval inversions, and a systematic hyperparameter search (Phase 10) that reduces S1 MPIW by 14.4% and reaches the empirical oracle floor. Metrics reported: PICP, MPIW, CWC (Khosravi 2011), IS (Winkler 1972).
+
+4. **A systematic 90%-coverage benchmark (Phases 16–23)** comparing eight PI methods — CQR-GBM, Tube Loss ANN, MVE, MDN, CQR-ANN, CQR-RF — under a unified valid-window criterion (PICP ∈ [90%, 95%], α=0.10). Best results: EOS-04 CQR-ANN (MPIW=27.12, CWC=0.542, IS=35.12); Sentinel-1 CQR-RF (MPIW=27.46, CWC=0.498, IS=32.72).
 
 ---
 
@@ -211,8 +213,9 @@ Raw Excel Data + GEE NDVI CSVs
    [Phase 20] Fine-Tune GBM CQR              (3528-config dense grid, α=0.10)
       │         ▸ EXPERIMENT-DERIVED: Phase 19 val cliff (25.82→26.86 gap) required
       │           dense grid to verify basin; our contribution
-      │         → S1: 60 hits test PICP 90-95% & MPIW 25-26
-      │         → Best: test PICP=92.8%, MPIW=25.85 (LR=0.032, n=450)
+      │         → EOS-04: max valid test PICP=91.22% (n_test=205 ceiling), best MPIW=27.51
+      │         → S1: 92.81%/MPIW=25.85 (lr=0.032,n=450) & 92.16%/25.79 (lr=0.025,n=550)
+      │           3163 configs hit test 90-95%; lowest MPIW=25.27 @ PICP=90.2% (lr=0.025,n=800)
       │
    [Phase 21] Tube Loss ANN                  (direct bounds + conformal extension, α=0.10)
       │         ▸ FROM PAPER: Rana et al. arXiv:2412.06853 (2024) "Tube Loss for Prediction
@@ -498,12 +501,14 @@ Both methods are theoretically motivated but failed empirically. Root cause: n_c
 
 ### Phase 6 — Conformalized Quantile Regression (α = 0.05)
 
-| Method | EOS-04 PICP | EOS-04 MPIW | S1 PICP | S1 MPIW | Inversions |
-|--------|------------|------------|---------|---------|-----------|
-| SVM Split Conformal | 0.9317 ❌ | 38.38 | 0.9608 ✅ | 40.81 | N/A |
-| **GBM CQR** | **0.9659 ✅** | **35.70** | 0.9542 ✅ | **35.75** | **0.0%** |
-| ANN Split Conformal | 0.9610 ✅ | 39.32 | 0.9542 ✅ | 39.39 | N/A |
-| ANN CQR (dual-output) | 0.9220 ❌ | 41.18 | **0.9804 ✅** | 41.77 | **0.0%** |
+| Method | EOS PICP | EOS MPIW | EOS CWC | S1 PICP | S1 MPIW | S1 CWC | Inversions |
+|--------|:--------:|:--------:|:-------:|:-------:|:-------:|:------:|:----------:|
+| SVM Split Conformal | 0.9317 ❌ | 38.38 | 2.6802 | 0.9608 ✅ | 40.81 | 0.7407 | N/A |
+| **GBM CQR** | **0.9659 ✅** | **35.70** | **0.7130** | 0.9542 ✅ | **35.75** | **0.6488** | **0.0%** |
+| ANN Split Conformal | 0.9610 ✅ | 39.32 | 0.7853 | 0.9542 ✅ | 39.39 | 0.7149 | N/A |
+| ANN CQR (dual-output) | 0.9220 ❌ | 41.18 | 4.1658 | **0.9804 ✅** | 41.77 | 0.7581 | **0.0%** |
+
+> CWC (Khosravi 2011): μ_c=0.95, η=50. ❌ entries have PICP < 0.95 → γ=1 penalty activated (high CWC).
 
 **GBM CQR** delivers the tightest valid intervals (MPIW 35.70 / 35.75) on both sensors and serves as the primary baseline for all subsequent phases.
 
@@ -513,29 +518,29 @@ Both methods are theoretically motivated but failed empirically. Root cause: n_c
 
 #### EOS-04
 
-| τ_lo | τ_hi | RawCal PICP | CQR PICP | CQR MPIW | Inversions |
-|------|------|------------|---------|---------|-----------|
-| 0.010 | 0.960 | 0.9707 ✅ | 0.8878 ❌ | 34.52 | 0.0% |
-| 0.015 | 0.965 | 0.9659 ✅ | 0.9171 ❌ | 36.45 | 0.0% |
-| 0.020 | 0.970 | 0.9707 ✅ | 0.9073 ❌ | 36.36 | 0.0% |
-| 0.025 | 0.975 | 0.9756 ✅ | 0.9220 ❌ | 41.40 | 0.0% |
-| 0.030 | 0.980 | 0.9805 ✅ | 0.9220 ❌ | 40.22 | 0.0% |
-| 0.040 | 0.990 | 0.9707 ✅ | 0.9220 ❌ | 43.53 | 0.0% |
+| τ_lo | τ_hi | RawCal PICP | CQR PICP | CQR MPIW | CWC | V? |
+|------|------|:-----------:|:--------:|:--------:|:---:|:--:|
+| 0.010 | 0.960 | 0.9707 | 0.8878 ❌ | 34.52 | 16.1461 | ✗ |
+| 0.015 | 0.965 | 0.9659 | 0.9171 ❌ | 36.45 | 4.5056 | ✗ |
+| 0.020 | 0.970 | 0.9707 | 0.9073 ❌ | 36.36 | 6.8628 | ✗ |
+| 0.025 | 0.975 | 0.9756 | 0.9220 ❌ | 41.40 | 4.1880 | ✗ |
+| 0.030 | 0.980 | 0.9805 | 0.9220 ❌ | 40.22 | 4.0687 | ✗ |
+| 0.040 | 0.990 | 0.9707 | 0.9220 ❌ | 43.53 | 4.4036 | ✗ |
 
-⚠ **No valid tau found for EOS-04 ANN CQR** — all 6 configurations produce CQR PICP < 0.95 on the test set. The ANN quantile heads systematically under-cover the left tail for EOS-04, making calibrated coverage impossible with this architecture. This is why GBM CQR is the primary method for EOS-04.
+⚠ **No valid tau found for EOS-04 ANN CQR** — all 6 configurations produce CQR PICP < 0.95. High CWC scores (4–16) confirm the coverage penalty. ANN quantile heads systematically under-cover the left tail for EOS-04, making calibrated coverage impossible with this architecture.
 
 #### Sentinel-1
 
-| τ_lo | τ_hi | RawCal PICP | CQR PICP | CQR MPIW | Inversions |
-|------|------|------------|---------|---------|-----------|
-| **0.010** | **0.960** | **0.9608 ✅** | **0.9542 ✅** | **37.40** | 0.0% |
-| 0.015 | 0.965 | 0.9477 ❌ | 0.9608 ✅ | 38.90 | 0.0% |
-| 0.020 | 0.970 | 0.9412 ❌ | 0.9673 ✅ | 40.70 | 0.0% |
-| 0.025 | 0.975 | 0.9542 ✅ | 0.9804 ✅ | 43.26 | 0.0% |
-| 0.030 | 0.980 | 0.9412 ❌ | 0.9673 ✅ | 44.59 | 0.0% |
-| 0.040 | 0.990 | 0.9412 ❌ | 0.9673 ✅ | 43.64 | 0.0% |
+| τ_lo | τ_hi | RawCal PICP | CQR PICP | CQR MPIW | CWC | V? |
+|------|------|:-----------:|:--------:|:--------:|:---:|:--:|
+| **0.010** | **0.960** | **0.9608** | **0.9542 ✅** | **37.40** | **0.6787** | **✓** |
+| 0.015 | 0.965 | 0.9477 | 0.9608 ✅ | 38.90 | 0.7061 | ✓ |
+| 0.020 | 0.970 | 0.9412 | 0.9673 ✅ | 40.70 | 0.7387 | ✓ |
+| 0.025 | 0.975 | 0.9542 | 0.9804 ✅ | 43.26 | 0.7851 | ✓ |
+| 0.030 | 0.980 | 0.9412 | 0.9673 ✅ | 44.59 | 0.8092 | ✓ |
+| 0.040 | 0.990 | 0.9412 | 0.9673 ✅ | 43.64 | 0.7919 | ✓ |
 
-★ **Best (RawCal PICP ≥ 0.95): τ = 0.01/0.96 → CQR PICP=0.9542, MPIW=37.40** (does not beat Phase 6 GBM CQR baseline of 35.75)
+★ **Best (RawCal PICP ≥ 0.95): τ=0.01/0.96 → CQR PICP=0.9542, MPIW=37.40, CWC=0.6787** — does not beat Phase 6 GBM CQR (MPIW=35.75, CWC=0.6488).
 
 ---
 
@@ -595,17 +600,17 @@ Both methods are theoretically motivated but failed empirically. Root cause: n_c
 </details>
 
 **Phase 8 best (PICP ≥ 0.95):**
-- EOS-04: γ=2^1 → PICP=0.9512, MPIW=30.91
-- Sentinel-1: γ=2^-4 → PICP=0.9542, MPIW=37.56 (worse than GBM CQR at 35.75)
+- EOS-04: γ=2^1 → PICP=0.9512, MPIW=30.91, **CWC=0.6173**
+- Sentinel-1: γ=2^-4 → PICP=0.9542, MPIW=37.56, **CWC=0.6816** (worse than GBM CQR at MPIW=35.75, CWC=0.6488)
 
 ---
 
 ### Phase 8b — Quantile SVR C × γ Joint Grid
 
-| Sensor | Best C | Best γ | PICP | MPIW | vs Phase 8 | vs Phase 6 GBM |
-|--------|:------:|:------:|:----:|:----:|:----------:|:--------------:|
-| EOS-04 | 2^8 | 2^0 | 0.9561 ✅ | **30.77** | −0.14 | −4.93 |
-| Sentinel-1 | 2^6 | 2^-4 | 0.9542 ✅ | 37.56 | 0.00 | +1.81 |
+| Sensor | Best C | Best γ | PICP | MPIW | CWC | vs Ph8 MPIW | vs Ph6 GBM |
+|--------|:------:|:------:|:----:|:----:|:---:|:-----------:|:----------:|
+| EOS-04 | 2^8 | 2^0 | 0.9561 ✅ | **30.77** | **0.6147** | −0.14 | −4.93 |
+| Sentinel-1 | 2^6 | 2^-4 | 0.9542 ✅ | 37.56 | 0.6816 | 0.00 | +1.81 |
 
 EOS-04 marginally improves (30.91→30.77) with C=2^8. Sentinel-1 shows no improvement: higher C causes interval over-collapse on a heteroscedastic sensor (raw interval width CV=26%), destroying PICP above C=2^6. The Phase 6 GBM CQR baseline remains the better method for Sentinel-1.
 
@@ -613,11 +618,11 @@ EOS-04 marginally improves (30.91→30.77) with C=2^8. Sentinel-1 shows no impro
 
 ### Phase 9 — Adaptive CQR Variants (Negative Results)
 
-| Method | EOS-04 PICP | EOS-04 MPIW | S1 PICP | S1 MPIW |
-|--------|:-----------:|:-----------:|:-------:|:-------:|
-| GBM CQR (Phase 6 baseline) | 0.9659 ✅ | 35.70 | 0.9542 ✅ | 35.75 |
-| Interval-normalized CQR | 0.9610 ✅ | 35.34 | 0.9412 ❌ | 35.28 |
-| Mondrian CQR (crop-stratified) | 0.9317 ❌ | 36.80 | 0.9216 ❌ | 33.87 |
+| Method | EOS PICP | EOS MPIW | EOS CWC | S1 PICP | S1 MPIW | S1 CWC | V? |
+|--------|:--------:|:--------:|:-------:|:-------:|:-------:|:------:|:--:|
+| GBM CQR (Phase 6 baseline) | 0.9659 ✅ | 35.70 | 0.7130 | 0.9542 ✅ | 35.75 | 0.6488 | ✓ |
+| CQR-d (interval-normalized) | 0.9610 ✅ | 35.34 | 0.7059 | 0.9412 ❌ | 35.28 | 1.6356 | EOS✓ |
+| Mondrian CQR (crop-stratified) | 0.9317 ❌ | 36.80 | 2.5697 | 0.9216 ❌ | 33.87 | 3.1615 | ✗ |
 
 **MPIW decomposition (root cause):** The base GBM contributes 90–92% of final MPIW; the CQR correction contributes only 8–10% (q̂ ≈ 1.4–1.75 units on a 35-unit MPIW). Normalising by raw interval width (CV=16–26%) introduces estimation error that swamps the correction. Mondrian CQR produced negative group-level q̂ (crop 5 EOS-04: q̂=−0.882; crop 19 S1: q̂=−0.046), indicating per-crop covariate shift: the random 70/10/10/10 split places different seasonal mixtures in cal vs test per crop, violating within-crop exchangeability. These are **valid negative findings** that define the boundary of adaptive CQR applicability at this dataset scale (~150 cal samples, 20+ crop classes).
 
@@ -625,10 +630,12 @@ EOS-04 marginally improves (30.91→30.77) with C=2^8. Sentinel-1 shows no impro
 
 ### Phase 10 — Tuned GBM CQR (96-config HP Grid)
 
-| Sensor | Selected params | q̂ | val PICP | val MPIW | test PICP | test MPIW | vs Phase 6 |
-|--------|:---------------:|:--:|:--------:|:--------:|:---------:|:---------:|:----------:|
-| EOS-04 | msl=1, depth=4, n=300, sub=0.8, τ=0.025/0.975 | 1.45 | 0.9510 ✅ | 33.10 | **0.9561 ✅** | **33.40** | −2.30 (−6.5%) |
-| Sentinel-1 | msl=5, depth=4, n=300, sub=0.8, τ=0.1/0.9 | 6.23 | 0.9539 ✅ | 31.95 | **0.9608 ✅** | **30.61** | −5.14 (−14.4%) |
+| Sensor | Selected params | q̂ | val PICP | val MPIW | test PICP | test MPIW | CWC | IS | vs Ph6 |
+|--------|:---------------:|:--:|:--------:|:--------:|:---------:|:---------:|:---:|:--:|:------:|
+| EOS-04 | msl=1, d=4, n=300, sub=0.8, τ=0.025/0.975 | 1.45 | 0.9510 | 33.10 | **0.9561 ✅** | **33.40** | **0.6671** | — | −6.5% |
+| Sentinel-1 | msl=5, d=4, n=300, sub=0.8, τ=0.1/0.9 | 6.23 | 0.9539 | 31.95 | **0.9608 ✅** | **30.61** | **0.5556** | — | −14.4% |
+
+> IS not available for Phase 10 (per-sample predictions not saved). CWC = PINAW × 1 since both PICP ≥ 0.95.
 
 **EOS-04:** Adding n_estimators=300 with subsample=0.8 (stochastic boosting) reduces MPIW from 35.70→33.40. QSVR Phase 8b still holds the overall minimum (30.77) for this sensor.
 
@@ -644,10 +651,12 @@ Motivated by the observation that all Phase 10 results saturate near the oracle 
 
 **Grid:** 360 configs/sensor — same GBM HP space as Phase 10, extended τ pairs ∈ {(0.1,0.9),(0.15,0.85),(0.2,0.8)}.
 
-| Sensor | val PICP | val MPIW | test PICP | test MPIW | vs Ph10 |
-|--------|:--------:|:--------:|:---------:|:---------:|:-------:|
-| EOS-04 | 0.8971 | 26.19 | 0.8976 | **26.55** | −6.85 |
-| Sentinel-1 | 0.9013 | 26.05 | 0.8824 | **26.05** | −4.56 |
+| Sensor | val PICP | val MPIW | test PICP | test MPIW | CWC | IS | V? | vs Ph10 |
+|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|:--:|:-------:|
+| EOS-04 | 0.8971 | 26.19 | 0.8976 ✗ | **26.55** | 1.128 | — | ✗ | −6.85 |
+| Sentinel-1 | 0.9013 | 26.05 | 0.8824 ✗ | **26.05** | 1.613 | — | ✗ | −4.56 |
+
+> CWC uses μ_c=0.90. Both sensors miss the 90% floor (PICP < 0.90), activating the CWC penalty (γ=1).
 
 **Finding:** Dropping to 90% coverage achieves MPIW ≈ 26 on both sensors, but test PICP falls just below 90%. The physical hard samples (irrigation/senescence/tillage events) are SAR-opaque — they produce large conformity scores that pin q̂ above the theoretical minimum for 90% coverage.
 
@@ -908,15 +917,23 @@ The original experiment had six methodological errors. Each fix is isolated belo
 | S1 PICP | 0.9346 | **0.9804** | ANN CQR dual-output (Phase 6) | +4.6 pp |
 | S1 MPIW | 42.23 | **30.61** | Tuned GBM CQR Phase 10 (τ=0.1/0.9) | −11.62 |
 
-### 90% Coverage (α = 0.10) — Phases 16–20
+### 90% Coverage (α = 0.10) — Phases 16–23
 
-| Metric | Ph10 baseline (α=0.05) | Best achieved (α=0.10) | Method | ΔMPIW |
-|--------|:---------------------:|:---------------------:|--------|:-----:|
-| S1 MPIW @ PICP≥90% | 30.61 | **25.27** | GBM CQR Phase 20 (LR=0.025, n=800) | −5.34 |
-| S1 MPIW @ PICP≥92% | — | **25.79** | GBM CQR Phase 20 (LR=0.025, n=550) | — |
-| EOS-04 MPIW @ PICP≥90% | — | **26.54** (floor) | GBM CQR Phase 20 | — |
+| Metric | Ph10 baseline (α=0.05) | Best achieved (α=0.10) | Method | ΔMPIW | CWC | IS |
+|--------|:---------------------:|:---------------------:|--------|:-----:|:---:|:--:|
+| EOS-04 MPIW @ PICP∈[90–95%] | 33.40 | **27.12** | **CQR-ANN (Ph23)** | −6.28 | **0.5416** | **35.12** |
+| EOS-04 MPIW @ PICP≥90% (GBM) | — | 26.54 | GBM CQR Ph20 (lr=0.028, n=500) | — | 0.5300 | — |
+| S1 MPIW @ PICP∈[90–95%] | 30.61 | **27.46** | **CQR-RF (Ph23)** | −3.15 | **0.4984** | **32.72** |
+| S1 MPIW @ PICP≥90% (GBM) | — | 25.27 | GBM CQR Ph20 (lr=0.025, n=800) | — | 0.4587 | — |
+| S1 MPIW @ PICP≥92% (GBM) | — | 25.79 | GBM CQR Ph20 (lr=0.025, n=550) | — | 0.4681 | — |
 
-> At 90% coverage, Sentinel-1 achieves MPIW=25.27 — a **17.4% reduction** vs the Phase 10 95%-coverage best (30.61). This trades 5 pp of coverage guarantee for significantly tighter uncertainty bounds, which may be acceptable for some precision-agriculture applications.
+> **Overall 90%-coverage winners** (best CWC within valid PICP ∈ [90–95%] window):
+> - EOS-04: **CQR-ANN Ph23** — PICP=90.24%, MPIW=27.12, CWC=0.542, IS=35.12
+> - Sentinel-1: **CQR-RF Ph23** — PICP=91.50%, MPIW=27.46, CWC=0.498, IS=32.72
+>
+> GBM CQR Phase 20 achieves the lowest absolute MPIW (25.27–26.54) but these configs cannot be selected without test-set peeking (val-criterion winner has test PICP 86–87%). CQR-RF Ph23 is the valid-range winner by CWC and IS.
+>
+> At 90% coverage, Sentinel-1 CQR-RF achieves MPIW=27.46 — a **10.3% reduction** vs Ph10 95%-coverage best (30.61), trading 3.5 pp coverage for tighter uncertainty bounds. EOS-04 CQR-ANN achieves MPIW=27.12 vs Ph10's 33.40 — a **18.8% reduction**.
 
 ### Complete CWC & IS — All Phases, Both Sensors
 
@@ -1258,9 +1275,19 @@ Conformal prediction provides the finite-sample marginal coverage guarantee:
 
 for any α ∈ (0,1), without distributional assumptions, provided calibration samples are **exchangeable** with the test sample (drawn i.i.d., not used during training in any form).
 
-This paper's implementation satisfies exchangeability through the strict 70/10/10/10 split. All PICP values reported on the test set are therefore valid coverage estimates under this guarantee. Prior implementations using val = cal do **not** satisfy exchangeability and cannot claim the guarantee.
+This paper's implementation satisfies exchangeability through the strict **70/10/10/10 split** (train / val / calibration / test). All PICP values reported on the test set are valid coverage estimates under this guarantee. Prior implementations using val = cal do **not** satisfy exchangeability and cannot claim the guarantee.
 
-**Finite-sample note:** At n_cal ≈ 153, the standard conformal quantile level is ⌈(n+1)(1−α)⌉/n ≈ 0.9608, which already builds in a small conservative margin. The finite-sample standard deviation of PICP estimates at n_test ≈ 153 is ≈ ±1.8 percentage points. All reported PICP values ≥ 0.95 are statistically valid; differences smaller than 2 pp should not be over-interpreted.
+**Finite-sample note:**
+- EOS-04: n_cal ≈ 252, n_test = 205. The conformal quantile level at α=0.05 is ⌈(n_cal+1)×0.95⌉/n_cal ≈ 0.9544. PICP standard deviation at n_test=205 ≈ ±1.5 pp.
+- Sentinel-1: n_cal ≈ 181, n_test = 153. Conformal quantile level ≈ 0.9613. PICP standard deviation at n_test=153 ≈ ±1.8 pp.
+- Differences smaller than 2 pp should not be over-interpreted. All reported PICP ≥ 0.95 (α=0.05) and PICP ∈ [90%, 95%] (α=0.10) are valid under the coverage guarantee.
+
+**Valid-window criterion (α=0.10 phases 16–23):** We define the valid window as PICP ∈ [90%, 95%]. The lower bound (90%) is the nominal coverage target. The upper bound (95%) flags over-conservative methods whose intervals are unnecessarily wide — a method with PICP=98% at 90% target is wasting interval width. CWC captures this: methods above μ_c=0.90 have γ=0 (no penalty), but the PINAW term still penalises width, so tighter methods win.
+
+**Limitations:**
+- Marginal (not conditional) coverage is guaranteed. For subgroups (e.g., individual crop types), coverage may deviate — Mondrian CQR (Phase 9c) demonstrated this: crop-level PICP ranged from 87.5% to 100%.
+- The IoT LoRa sensors have a measurement ceiling at SM1=50% and saturation artifacts that are removed before modeling. Ground truth quality limits the achievable MPIW floor.
+- Results are specific to the Gujarat field site. Generalisability to different soil types, climates, or SAR acquisition geometries requires re-calibration.
 
 ---
 
@@ -1609,8 +1636,8 @@ uv sync
 ### Additional References
 
 - Angelopoulos, A. N., & Bates, S. (2023). Conformal Prediction: A Gentle Introduction. *Foundations and Trends in Machine Learning*, 16(4), 494–591.
-- Meinshausen, N. (2006). Quantile Regression Forests. *Journal of Machine Learning Research*, 7, 983–999.
 - Gorelick, N., et al. (2017). Google Earth Engine: Planetary-scale geospatial analysis for everyone. *Remote Sensing of Environment*, 202, 18–27.
 - Dubois-Fernandez, P., et al. (2012). SAR backscatter and soil moisture — dielectric mixing models. *Remote Sensing*.
 - Chen, T., & Guestrin, C. (2016). XGBoost: A Scalable Tree Boosting System. *KDD*, 785–794.
 - Breiman, L. (2001). Random Forests. *Machine Learning*, 45(1), 5–32.
+- Khosravi, A., Nahavandi, S., Creighton, D., & Atiya, A. F. (2011). Comprehensive review of neural network-based prediction intervals and new advances. *IEEE Transactions on Neural Networks*, 22(9), 1341–1356.
