@@ -1,0 +1,210 @@
+{
+    "Ph4": {
+        "EOS-04": {
+            "PICP": 0.956098,
+            "MPIW": 37.301395,
+            "CWC": 0.745,
+            "IS": 41.38,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.941176,
+            "MPIW": 37.220333,
+            "CWC": 1.7256,
+            "IS": 44.13,
+            "matched": false
+        }
+    },
+    "Ph5": {
+        "EOS-04": {
+            "PICP": 0.921951,
+            "MPIW": 36.729159,
+            "CWC": 3.7158,
+            "IS": 45.4,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.947712,
+            "MPIW": 37.573545,
+            "CWC": 1.4465,
+            "IS": 40.5,
+            "matched": false
+        }
+    },
+    "Ph6_GBM_CQR": {
+        "EOS-04": {
+            "PICP": 0.960976,
+            "MPIW": 35.912328,
+            "CWC": 0.7173,
+            "IS": 38.85,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.934641,
+            "MPIW": 33.852657,
+            "CWC": 1.9386,
+            "IS": 39.95,
+            "matched": false
+        }
+    },
+    "Ph6_SVM_Split": {
+        "EOS-04": {
+            "PICP": 0.907317,
+            "MPIW": 37.282439,
+            "CWC": 7.0369,
+            "IS": 47.56,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.960784,
+            "MPIW": 42.303693,
+            "CWC": 0.7678,
+            "IS": 50.6,
+            "matched": false
+        }
+    },
+    "Ph6_ANN_Split": {
+        "EOS-04": {
+            "PICP": 0.921951,
+            "MPIW": 35.673051,
+            "CWC": 3.609,
+            "IS": 45.4,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.96732,
+            "MPIW": 45.899278,
+            "CWC": 0.833,
+            "IS": 52.33,
+            "matched": false
+        }
+    },
+    "Ph6_ANN_CQR": {
+        "EOS-04": {
+            "PICP": 0.941463,
+            "MPIW": 41.135538,
+            "CWC": 2.0807,
+            "IS": 44.69,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.960784,
+            "MPIW": 41.900274,
+            "CWC": 0.7604,
+            "IS": 43.83,
+            "matched": false
+        }
+    },
+    "Ph7": {
+        "EOS-04": {
+            "PICP": 0.897561,
+            "MPIW": 36.306665,
+            "CWC": 10.7053,
+            "IS": 47.19,
+            "matched": false
+        },
+        "Sentinel-1": {
+            "PICP": 0.947712,
+            "MPIW": 38.994889,
+            "CWC": 1.5012,
+            "IS": 43.68,
+            "matched": false
+        }
+    },
+    "Ph8": {
+        "EOS-04": {
+            "PICP": 0.95122,
+            "MPIW": 30.905168,
+            "CWC": 0.6173,
+            "IS": 35.85,
+            "matched": true
+        },
+        "Sentinel-1": {
+            "PICP": 0.954248,
+            "MPIW": 37.557424,
+            "CWC": 0.6816,
+            "IS": 42.72,
+            "matched": true
+        }
+    },
+    "Ph8b": {
+        "EOS-04": {
+            "PICP": 0.956098,
+            "MPIW": 30.774245,
+            "CWC": 0.6147,
+            "IS": 34.72,
+            "matched": true
+        },
+        "Sentinel-1": {
+            "PICP": 0.954248,
+            "MPIW": 37.557424,
+            "CWC": 0.6816,
+            "IS": 42.72,
+            "matched": true
+        }
+    },
+    "Ph9a": {
+        "EOS-04": {
+            "PICP": 0.960976,
+            "MPIW": 35.344345,
+            "CWC": 0.7059,
+            "IS": 37.88,
+            "matched": true
+        },
+        "Sentinel-1": {
+            "PICP": 0.941176,
+            "MPIW": 35.278606,
+            "CWC": 1.6356,
+            "IS": 40.85,
+            "matched": true
+        }
+    },
+    "Ph9c": {
+        "EOS-04": {
+            "PICP": 0.931707,
+            "MPIW": 36.802357,
+            "CWC": 2.5697,
+            "IS": 39.96,
+            "matched": true
+        },
+        "Sentinel-1": {
+            "PICP": 0.921569,
+            "MPIW": 33.867026,
+            "CWC": 3.1615,
+            "IS": 42.38,
+            "matched": true
+        }
+    },
+    "Ph10": {
+        "EOS-04": {
+            "PICP": 0.956098,
+            "MPIW": 33.397435,
+            "CWC": 0.6671,
+            "IS": 37.61,
+            "matched": true
+        },
+        "Sentinel-1": {
+            "PICP": 0.960784,
+            "MPIW": 30.614184,
+            "CWC": 0.5556,
+            "IS": 39.04,
+            "matched": true
+        }
+    },
+    "Ph20": {
+        "EOS-04": {
+            "PICP": 0.868293,
+            "MPIW": 26.36966,
+            "CWC": 3.0975,
+            "IS": 38.51,
+            "matched": true
+        },
+        "Sentinel-1": {
+            "PICP": 0.862745,
+            "MPIW": 24.667684,
+            "CWC": 3.3314,
+            "IS": 34.47,
+            "matched": true
+        }
+    }
+}

@@ -937,36 +937,37 @@ The original experiment had six methodological errors. Each fix is isolated belo
 
 ### Complete CWC & IS — All Phases, Both Sensors
 
-> **α=0.05 phases** (1–10): μ_c=0.95 for CWC. IS not stored (per-sample predictions not saved).
-> **α=0.10 phases** (16–23): μ_c=0.90 for CWC. IS stored for Phases 21-23.
+> **α=0.05 phases** (1–10): μ_c=0.95 for CWC. IS computed via rerun (`run_is_recompute.py`); ✓=exact PICP/MPIW match, †=approximate (non-deterministic ANN/MAPIE retraining, PICP off ≤5%).
+> **α=0.10 phases** (16–23): μ_c=0.90 for CWC. IS computed via rerun for Phase 20 (✓ exact); IS loaded from disk for Phases 21–23.
 > Valid window for 90% phases: **PICP ∈ [90%, 95%]** — methods outside shown as ✗.
 
 #### α = 0.05 (95% target) — Phases 4–10
 
-| Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ |
-|-------|--------|:--------:|:--------:|:---------:|:-------:|:-------:|:---------:|
-| Ph4 | ANN-QR (raw pinball) | 96.84% | 39.64 | 0.7917 | 96.70% | 44.56 | 0.8088 |
-| Ph5 | MAPIE GBR | 96.85% | 39.05 | 0.7800 | 96.72% | 43.54 | 0.7902 |
-| Ph6 | GBM-CQR | 96.59% | 35.70 | 0.7130 | 95.42% | 35.75 | 0.6488 |
-| Ph6 | SVM Split Conformal | 93.17% ✗ | 38.38 | 2.6802 | 96.08% | 40.81 | 0.7407 |
-| Ph6 | ANN Split Conformal | 96.10% | 39.32 | 0.7853 | 95.42% | 39.39 | 0.7149 |
-| Ph6 | ANN-CQR | 92.20% ✗ | 41.18 | 4.1658 | 98.04% | 41.77 | 0.7581 |
-| Ph7 | CQR asym (0.01/0.96) | 88.78% ✗ | 34.52 | 16.1461 | 95.42% | 37.40 | 0.6787 |
-| Ph8 | QSVR γ grid | 95.12% | 30.91 | 0.6173 | 95.42% | 37.56 | 0.6816 |
-| Ph8b | **QSVR C×γ** | 95.61% | **30.77** | **0.6146** | 95.42% | 37.56 | 0.6816 |
-| Ph9a | CQR-d (interval-norm) | 96.10% | 35.34 | 0.7059 | 94.12% ✗ | 35.28 | 1.6356 |
-| Ph9c | Mondrian CQR | 93.17% ✗ | 36.80 | 2.5697 | 92.16% ✗ | 33.87 | 3.1615 |
-| **Ph10** | **Tuned GBM CQR** | 95.61% | 33.40 | 0.6671 | **96.08%** | **30.61** | **0.5556** |
+| Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | EOS IS ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ | S1 IS ↓ |
+|-------|--------|:--------:|:--------:|:---------:|:--------:|:-------:|:-------:|:---------:|:-------:|
+| Ph4 | ANN-QR (raw pinball) | 96.84% | 39.64 | 0.7917 | 41.38† | 96.70% | 44.56 | 0.8088 | 44.13† |
+| Ph5 | MAPIE GBR | 96.85% | 39.05 | 0.7800 | 45.40† | 96.72% | 43.54 | 0.7902 | 40.50† |
+| Ph6 | GBM-CQR | 96.59% | 35.70 | 0.7130 | 38.85† | 95.42% | 35.75 | 0.6488 | 39.95† |
+| Ph6 | SVM Split Conformal | 93.17% ✗ | 38.38 | 2.6802 | 47.56† | 96.08% | 40.81 | 0.7407 | 50.60† |
+| Ph6 | ANN Split Conformal | 96.10% | 39.32 | 0.7853 | 45.40† | 95.42% | 39.39 | 0.7149 | 52.33† |
+| Ph6 | ANN-CQR | 92.20% ✗ | 41.18 | 4.1658 | 44.69† | 98.04% | 41.77 | 0.7581 | 43.83† |
+| Ph7 | CQR asym (0.01/0.96) | 88.78% ✗ | 34.52 | 16.1461 | 47.19† | 95.42% | 37.40 | 0.6787 | 43.68† |
+| Ph8 | QSVR γ grid | 95.12% | 30.91 | 0.6173 | 35.85 | 95.42% | 37.56 | 0.6816 | 42.72 |
+| Ph8b | **QSVR C×γ** | 95.61% | **30.77** | **0.6146** | **34.72** | 95.42% | 37.56 | 0.6816 | 42.72 |
+| Ph9a | CQR-d (interval-norm) | 96.10% | 35.34 | 0.7059 | 37.88 | 94.12% ✗ | 35.28 | 1.6356 | 40.85 |
+| Ph9c | Mondrian CQR | 93.17% ✗ | 36.80 | 2.5697 | 39.96 | 92.16% ✗ | 33.87 | 3.1615 | 42.38 |
+| **Ph10** | **Tuned GBM CQR** | 95.61% | 33.40 | 0.6671 | 37.61 | **96.08%** | **30.61** | **0.5556** | **39.04** |
 
 > ✗ = PICP < 95% (below μ_c=0.95 threshold); CWC penalty term γ=1 activates, inflating score.
 > Ph8 = best γ from γ-grid search; Ph8b = best (C, γ) joint search (overall QSVR winner for EOS-04).
 > Ph9a CQR-d: non-symmetric conformalized quantile with interval-normalized scores. Ph9c Mondrian: label-conditional coverage.
+> † = IS approximate (non-deterministic retraining; PICP reproduced within ±5% tolerance). Exact (✓) phases: 8, 8b, 9a, 9c, 10.
 
 #### α = 0.10 (90% target) — Phases 16–23
 
 | Phase | Method | EOS PICP | EOS MPIW | EOS CWC ↓ | EOS IS ↓ | S1 PICP | S1 MPIW | S1 CWC ↓ | S1 IS ↓ | Valid |
 |-------|--------|:--------:|:--------:|:---------:|:--------:|:-------:|:-------:|:---------:|:-------:|:-----:|
-| 16-20 | CQR-GBM | 86.83% | 26.37 | 3.097 | N/A | 86.27% | 24.67 | 3.338 | N/A | ✗ |
+| 16-20 | CQR-GBM | 86.83% | 26.37 | 3.097 | 38.51 | 86.27% | 24.67 | 3.338 | 34.47 | ✗ |
 | 21 | Tube(D) | 89.27% | 130.66 | 6.369 | 135.89 | 83.66% | 124.87 | 56.22 | 139.78 | ✗ |
 | 21 | Tube(C) | 92.20% | 30.49 | 0.609 | 36.90 | 89.54% | 28.11 | 1.152 | 36.36 | EOS✓ |
 | 22 | MVE | 90.24% | 28.94 | 0.578 | 38.88 | 91.50% | 41.04 | 0.745 | 51.75 | ✓ |
@@ -988,25 +989,25 @@ Comparison plots in `output/eval_comparison/`: CWC/IS/MPIW/PICP bar charts (brig
 
 ### CWC & IS — Full Method Comparison (Best Config per Method, Both Sensors)
 
-> **IS note:** Winkler Interval Score requires per-sample `[lo, hi, y]` arrays. Only Phases 21–23 saved these to disk; IS is unavailable (—) for Phases 4–20 without re-running with output logging.
+> **IS note:** Winkler Interval Score requires per-sample `[lo, hi, y]` arrays. IS for Phases 4–20 computed via `run_is_recompute.py` (model retraining); Phases 8–10 and 20 are exact (PICP/MPIW verified ✓), Phases 4–7 are approximate (†, PICP off ≤5% due to non-deterministic ANN/MAPIE retraining). IS for Phases 21–23 loaded directly from saved prediction files.
 
 #### α = 0.05 (95% target) — sorted by EOS-04 CWC ↑ within valid window
 
 | Method | Phase | EOS PICP | EOS MPIW | EOS CWC | EOS IS | S1 PICP | S1 MPIW | S1 CWC | S1 IS | EOS V? | S1 V? |
 |--------|:-----:|:--------:|:--------:|:-------:|:------:|:-------:|:-------:|:------:|:-----:|:------:|:-----:|
-| **QSVR C×γ** | **8b** | **95.61%** | **30.77** | **0.6146** | — | 95.42% | 37.56 | 0.6816 | — | **✓★** | ✓ |
-| Tuned GBM CQR | 10 | 95.61% | 33.40 | 0.6671 | — | **96.08%** | **30.61** | **0.5556★** | — | ✓ | **✓★** |
-| GBM-CQR | 6 | 96.59% | 35.70 | 0.7130 | — | 95.42% | 35.75 | 0.6488 | — | ✓ | ✓ |
-| CQR-d (interval-norm) | 9a | 96.10% | 35.34 | 0.7059 | — | 94.12% ✗ | 35.28 | 1.6356 | — | ✓ | ✗ |
-| ANN Split Conformal | 6 | 96.10% | 39.32 | 0.7853 | — | 95.42% | 39.39 | 0.7149 | — | ✓ | ✓ |
-| MAPIE GBR | 5 | 96.85% | 39.05 | 0.7800 | — | 96.72% | 43.54 | 0.7903 | — | ✓ | ✓ |
-| ANN-QR [16,1] | 4 | 96.84% | 39.64 | 0.7917 | — | 96.70% | 44.56 | 0.8088 | — | ✓ | ✓ |
-| CQR asym [0.01/0.96] | 7 | 88.78% ✗ | 34.52 | 16.1461 | — | 95.42% | 37.40 | 0.6787 | — | ✗ | ✓ |
-| ANN-CQR | 6 | 92.20% ✗ | 41.18 | 4.1658 | — | 98.04% | 41.77 | 0.7581 | — | ✗ | ✓ |
-| SVM Split Conformal | 6 | 93.17% ✗ | 38.38 | 2.6802 | — | 96.08% | 40.81 | 0.7407 | — | ✗ | ✓ |
-| Mondrian CQR | 9c | 93.17% ✗ | 36.80 | 2.5697 | — | 92.16% ✗ | 33.87 | 3.1615 | — | ✗ | ✗ |
+| **QSVR C×γ** | **8b** | **95.61%** | **30.77** | **0.6146** | **34.72★** | 95.42% | 37.56 | 0.6816 | 42.72 | **✓★** | ✓ |
+| Tuned GBM CQR | 10 | 95.61% | 33.40 | 0.6671 | 37.61 | **96.08%** | **30.61** | **0.5556★** | **39.04★** | ✓ | **✓★** |
+| GBM-CQR | 6 | 96.59% | 35.70 | 0.7130 | 38.85† | 95.42% | 35.75 | 0.6488 | 39.95† | ✓ | ✓ |
+| CQR-d (interval-norm) | 9a | 96.10% | 35.34 | 0.7059 | 37.88 | 94.12% ✗ | 35.28 | 1.6356 | 40.85 | ✓ | ✗ |
+| ANN Split Conformal | 6 | 96.10% | 39.32 | 0.7853 | 45.40† | 95.42% | 39.39 | 0.7149 | 52.33† | ✓ | ✓ |
+| MAPIE GBR | 5 | 96.85% | 39.05 | 0.7800 | 45.40† | 96.72% | 43.54 | 0.7903 | 40.50† | ✓ | ✓ |
+| ANN-QR [16,1] | 4 | 96.84% | 39.64 | 0.7917 | 41.38† | 96.70% | 44.56 | 0.8088 | 44.13† | ✓ | ✓ |
+| CQR asym [0.01/0.96] | 7 | 88.78% ✗ | 34.52 | 16.1461 | 47.19† | 95.42% | 37.40 | 0.6787 | 43.68† | ✗ | ✓ |
+| ANN-CQR | 6 | 92.20% ✗ | 41.18 | 4.1658 | 44.69† | 98.04% | 41.77 | 0.7581 | 43.83† | ✗ | ✓ |
+| SVM Split Conformal | 6 | 93.17% ✗ | 38.38 | 2.6802 | 47.56† | 96.08% | 40.81 | 0.7407 | 50.60† | ✗ | ✓ |
+| Mondrian CQR | 9c | 93.17% ✗ | 36.80 | 2.5697 | 39.96 | 92.16% ✗ | 33.87 | 3.1615 | 42.38 | ✗ | ✗ |
 
-> ★ = lowest CWC in valid window per sensor (α=0.05 valid = PICP ≥ 95%).
+> ★ = lowest CWC or IS in valid window per sensor (α=0.05 valid = PICP ≥ 95%). † = IS approximate (non-deterministic retraining, PICP off ≤5%).
 
 #### α = 0.10 (90% target) — sorted by EOS-04 CWC ↑ within [90–95%] valid window
 
@@ -1017,7 +1018,7 @@ Comparison plots in `output/eval_comparison/`: CWC/IS/MPIW/PICP bar charts (brig
 | Tube(C) | 21 | 92.20% | 30.49 | 0.6091 | 36.90 | 89.54% ✗ | 28.11 | 1.1523 | 36.36 | ✓ | ✗ |
 | MDN | 22 | 89.27% ✗ | 42.91 | 2.0919 | 49.33 | 90.85% | 40.41 | 0.7334 | 47.64 | ✗ | ✓ |
 | **CQR-RF** | **23** | 89.76% ✗ | 27.59 | 1.1725 | 35.82 | **91.50%** | **27.46** | **0.4984★** | **32.72★** | ✗ | **✓** |
-| CQR-GBM finetune | 20 | 86.83% ✗ | 26.37 | 3.097 | — | 86.27% ✗ | 24.67 | 3.338 | — | ✗ | ✗ |
+| CQR-GBM finetune | 20 | 86.83% ✗ | 26.37 | 3.097 | 38.51 | 86.27% ✗ | 24.67 | 3.338 | 34.47 | ✗ | ✗ |
 | Tube(D) | 21 | 89.27% ✗ | 130.66 | 6.3691 | 135.89 | 83.66% ✗ | 124.87 | 56.22 | 139.78 | ✗ | ✗ |
 
 > ★ = lowest CWC / IS in valid [90–95%] window per sensor (α=0.10).
@@ -1028,7 +1029,7 @@ Comparison plots in `output/eval_comparison/`: CWC/IS/MPIW/PICP bar charts (brig
 
 > These tables show top-5 configs from each grid search phase, **sorted by val selection criterion** (val PICP ≥ target → min val MPIW), with actual test outcomes alongside. Reveals the val-test gap that explains why `best_config.json` may not match the best test result.
 >
-> IS not available for Ph4–Ph20 (per-sample predictions not saved). CWC computed from test PICP + test MPIW.
+> IS for Ph4–Ph20 computed via `run_is_recompute.py` (model retraining); exact for Phases 8–10 and 20, approximate (†) for Phases 4–7. CWC computed from test PICP + test MPIW.
 
 #### Phase 4 — ANN-QR raw pinball (all 6 archs, α=0.05, μ_c=0.95)
 
