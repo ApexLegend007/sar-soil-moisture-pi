@@ -1112,35 +1112,43 @@ Comparison plots in `output/eval_comparison/`: CWC/IS/MPIW/PICP bar charts (brig
 
 > Val top-2 both fail test coverage (93.5% and 94.8% < 95%). Stored best (rank 3 by val MPIW) is the first config that holds test coverage — demonstrates val-criterion correctly avoids over-tight configs.
 
-#### Phase 20 — CQR-GBM finetune (top 5 of full grid, α=0.10, μ_c=0.90)
+#### Phase 20 — CQR-GBM finetune — Complete PICP Bucket Breakdown (α=0.10, μ_c=0.90)
 
-> Note: `best_config.json` stores the val-criterion winner (val PICP ≥ 0.90 → min val MPIW), which achieves test PICP = **86.83%** (EOS) and **86.27%** (S1) — below 90%. The configs below, sorted by **test PICP ∈ [90–95%] → min test MPIW**, are the actual test-valid configs from the full grid.
+> `best_config.json` stores the **val-criterion winner** (val PICP ≥ 0.90 → min val MPIW), which drops to test PICP = **86.83%** (EOS) and **86.27%** (S1). The tables below show the **best config per distinct test-PICP bucket** from the full grid, revealing the 92% PICP + MPIW~25 results that the val criterion misses.
 
-**EOS-04** — 213 configs hit test PICP ∈ [90%, 95%]
+**EOS-04** — 213 configs hit test PICP ∈ [90%, 95%]; max reachable = **91.22%** (n_test=205, 187/205)
 
-| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
-|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
-| 1 | lr=0.028 n=500 msl=30 | 87.25% | 25.87 | 90.24% | 26.54 | 0.5300 | ✓ |
-| 2 | lr=0.028 n=400 msl=30 | 87.75% | 25.89 | 90.24% | 26.58 | 0.5308 | ✓ |
-| 3 | lr=0.025 n=550 msl=30 | 88.73% | 26.19 | 90.24% | 26.72 | 0.5337 | ✓ |
-| 4 | lr=0.02 n=500 msl=22 | 89.71% | 26.33 | 90.24% | 26.73 | 0.5338 | ✓ |
-| 5 | lr=0.04 n=700 msl=25 | 88.73% | 26.36 | 90.24% | 26.75 | 0.5343 | ✓ |
-| — | **stored best_config** | **90.20%** | **25.90** | 86.83% ✗ | 26.37 | 3.097 | ✗ |
+| Test PICP | # Configs | Best Params | Val PICP | Val MPIW | Test MPIW | CWC | V? |
+|:---------:|:---------:|-------------|:--------:|:--------:|:---------:|:---:|:--:|
+| **91.22%** | 9 | lr=0.025 n=550 msl=25 | 90.20% | 27.00 | **27.51** | **0.5495** | ✓ |
+| 90.73% | 54 | lr=0.03 n=700 msl=25 | 88.24% | 26.70 | 27.19 | 0.5430 | ✓ |
+| 90.24% | 150 | lr=0.028 n=500 msl=30 | 87.25% | 25.87 | 26.54 | 0.5300 | ✓ |
+| 89.76% ✗ | 265 | lr=0.02 n=500 msl=25 | 87.25% | 25.62 | 26.03 | 1.1073 | ✗ |
+| 86.83% ✗ | 1 | **stored best_config** | **90.20%** | **25.90** | 26.37 | 3.097 | ✗ |
 
-> Val PICP 90.20% → test drops to 86.83%. All top-5 valid configs have **val PICP below 90%** (87–89%) but land in the valid test window. Classic val-to-test flip caused by calibration set variance.
+> EOS-04 does not reach 92% test PICP in Phase 20 — the discrete test-set ceiling (n=205) means 92.20% would require 189/205 samples correct, which no config achieved. Highest valid bucket = **91.22%** with best MPIW=27.51.
 
-**Sentinel-1** — 3163 configs hit test PICP ∈ [90%, 95%] (from all_hits_summary.csv, 60 tracked in detail)
+**Sentinel-1** — 3163 configs hit test PICP ∈ [90%, 95%]; **92.81%** and **92.16%** both achieved (n_test=153)
 
-| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
-|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
-| 1 ★ | lr=0.025 n=800 msl=25 | 88.82% | 26.06 | 90.20% | **25.27** | **0.4587** | ✓ |
-| 2 | lr=0.028 n=500 msl=22 | 89.47% | 26.41 | 90.20% | 25.39 | 0.4607 | ✓ |
-| 3 | lr=0.02 n=450 msl=20 | 88.82% | 26.54 | 90.20% | 25.45 | 0.4620 | ✓ |
-| 4 | lr=0.035 n=700 msl=25 | 89.47% | 26.15 | 90.85% | 25.47 | 0.4622 | ✓ |
-| 5 | lr=0.025 n=600 msl=25 | 88.82% | 26.25 | 90.20% | 25.48 | 0.4624 | ✓ |
-| — | **stored best_config** | **90.13%** | **25.82** | 86.27% ✗ | 24.67 | 3.331 | ✗ |
+| Test PICP | # Configs | Best Params | Val PICP | Val MPIW | Test MPIW | CWC | V? |
+|:---------:|:---------:|-------------|:--------:|:--------:|:---------:|:---:|:--:|
+| 95.42% | 37 | lr=0.035 n=800 msl=20 | 92.11% | 28.62 | 27.87 | 0.5057 | ✓ |
+| 94.77% | 127 | lr=0.025 n=800 msl=20 | 90.13% | 28.74 | 27.55 | 0.5001 | ✓ |
+| 94.12% | 255 | lr=0.04 n=550 msl=15 | 91.45% | 28.20 | 27.19 | 0.4934 | ✓ |
+| 93.46% | 455 | lr=0.032 n=400 msl=22 | 88.82% | 27.47 | 26.38 | 0.4788 | ✓ |
+| **92.81%** | **462** | **lr=0.032 n=450 msl=22** | 88.16% | 26.94 | **25.85** | **0.4691** | ✓ |
+| **92.16%** | **589** | **lr=0.025 n=550 msl=25** | 90.13% | 26.55 | **25.79** | **0.4681** | ✓ |
+| 91.50% | 564 | lr=0.03 n=550 msl=20 | 90.79% | 26.80 | 25.76 | 0.4676 | ✓ |
+| 90.85% | 416 | lr=0.035 n=700 msl=25 | 89.47% | 26.15 | 25.47 | 0.4622 | ✓ |
+| **90.20%** | **295** | **lr=0.025 n=800 msl=25** ★ | 88.82% | 26.06 | **25.27** | **0.4587** | ✓ |
+| 89.54% ✗ | 147 | lr=0.025 n=700 msl=25 | 88.82% | 25.97 | 25.21 | 1.0327 | ✗ |
+| 86.27% ✗ | 1 | **stored best_config** | **90.13%** | **25.82** | 24.67 | 3.331 | ✗ |
 
-> ★ = `lr=0.025 n=800 msl=25` — this is the **90.2% PICP + MPIW=25.27** config visible in `best_picp_plots/` and `all_hits_plots/`. It is the true best test config for S1 Phase 20, but cannot be selected without looking at the test set.
+> **92.81% PICP + MPIW=25.85** (`lr=0.032 n=450 msl=22`) and **92.16% PICP + MPIW=25.79** (`lr=0.025 n=550 msl=25`) — these are the high-PICP configs visible in `best_picp_plots/` (plots named `PICP_92.8pct_...` and `PICP_92.2pct_...`). They are genuine test-set results from Phase 20.
+>
+> ★ = `lr=0.025 n=800 msl=25` achieves **lowest test MPIW=25.27** within valid window (90.2% PICP). The 92% PICP configs have slightly higher MPIW (~25.79–25.85) because tighter coverage requires larger intervals.
+>
+> The val-criterion `best_config.json` selects by val PICP ≥ 0.90 → min val MPIW and ends at test PICP **86.27%** — none of the valid configs above can be selected without looking at the test set (which would be data leakage).
 
 #### Phases 21–23 — Best Config per Method (val not stored, IS available)
 
