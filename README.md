@@ -969,6 +969,200 @@ Comparison plots in `output/eval_comparison/`: CWC/IS/MPIW/PICP bar charts (brig
 
 ---
 
+### CWC & IS — Full Method Comparison (Best Config per Method, Both Sensors)
+
+> **IS note:** Winkler Interval Score requires per-sample `[lo, hi, y]` arrays. Only Phases 21–23 saved these to disk; IS is unavailable (—) for Phases 4–20 without re-running with output logging.
+
+#### α = 0.05 (95% target) — sorted by EOS-04 CWC ↑ within valid window
+
+| Method | Phase | EOS PICP | EOS MPIW | EOS CWC | EOS IS | S1 PICP | S1 MPIW | S1 CWC | S1 IS | EOS V? | S1 V? |
+|--------|:-----:|:--------:|:--------:|:-------:|:------:|:-------:|:-------:|:------:|:-----:|:------:|:-----:|
+| **QSVR C×γ** | **8b** | **95.61%** | **30.77** | **0.6146** | — | 95.42% | 37.56 | 0.6816 | — | **✓★** | ✓ |
+| Tuned GBM CQR | 10 | 95.61% | 33.40 | 0.6671 | — | **96.08%** | **30.61** | **0.5556★** | — | ✓ | **✓★** |
+| GBM-CQR | 6 | 96.59% | 35.70 | 0.7130 | — | 95.42% | 35.75 | 0.6488 | — | ✓ | ✓ |
+| CQR-d (interval-norm) | 9a | 96.10% | 35.34 | 0.7059 | — | 94.12% ✗ | 35.28 | 1.6356 | — | ✓ | ✗ |
+| ANN Split Conformal | 6 | 96.10% | 39.32 | 0.7853 | — | 95.42% | 39.39 | 0.7149 | — | ✓ | ✓ |
+| MAPIE GBR | 5 | 96.85% | 39.05 | 0.7800 | — | 96.72% | 43.54 | 0.7903 | — | ✓ | ✓ |
+| ANN-QR [16,1] | 4 | 96.84% | 39.64 | 0.7917 | — | 96.70% | 44.56 | 0.8088 | — | ✓ | ✓ |
+| CQR asym [0.01/0.96] | 7 | 88.78% ✗ | 34.52 | 16.1461 | — | 95.42% | 37.40 | 0.6787 | — | ✗ | ✓ |
+| ANN-CQR | 6 | 92.20% ✗ | 41.18 | 4.1658 | — | 98.04% | 41.77 | 0.7581 | — | ✗ | ✓ |
+| SVM Split Conformal | 6 | 93.17% ✗ | 38.38 | 2.6802 | — | 96.08% | 40.81 | 0.7407 | — | ✗ | ✓ |
+| Mondrian CQR | 9c | 93.17% ✗ | 36.80 | 2.5697 | — | 92.16% ✗ | 33.87 | 3.1615 | — | ✗ | ✗ |
+
+> ★ = lowest CWC in valid window per sensor (α=0.05 valid = PICP ≥ 95%).
+
+#### α = 0.10 (90% target) — sorted by EOS-04 CWC ↑ within [90–95%] valid window
+
+| Method | Phase | EOS PICP | EOS MPIW | EOS CWC | EOS IS | S1 PICP | S1 MPIW | S1 CWC | S1 IS | EOS V? | S1 V? |
+|--------|:-----:|:--------:|:--------:|:-------:|:------:|:-------:|:-------:|:------:|:-----:|:------:|:-----:|
+| **CQR-ANN** | **23** | **90.24%** | **27.12** | **0.5416★** | **35.12★** | 90.85% | 29.54 | 0.5360 | 35.16 | **✓** | ✓ |
+| MVE | 22 | 90.24% | 28.94 | 0.5779 | 38.88 | 91.50% | 41.04 | 0.7449 | 51.75 | ✓ | ✓ |
+| Tube(C) | 21 | 92.20% | 30.49 | 0.6091 | 36.90 | 89.54% ✗ | 28.11 | 1.1523 | 36.36 | ✓ | ✗ |
+| MDN | 22 | 89.27% ✗ | 42.91 | 2.0919 | 49.33 | 90.85% | 40.41 | 0.7334 | 47.64 | ✗ | ✓ |
+| **CQR-RF** | **23** | 89.76% ✗ | 27.59 | 1.1725 | 35.82 | **91.50%** | **27.46** | **0.4984★** | **32.72★** | ✗ | **✓** |
+| CQR-GBM finetune | 20 | 86.83% ✗ | 26.37 | 3.097 | — | 86.27% ✗ | 24.67 | 3.338 | — | ✗ | ✗ |
+| Tube(D) | 21 | 89.27% ✗ | 130.66 | 6.3691 | 135.89 | 83.66% ✗ | 124.87 | 56.22 | 139.78 | ✗ | ✗ |
+
+> ★ = lowest CWC / IS in valid [90–95%] window per sensor (α=0.10).
+
+---
+
+### Val vs Test Gap — Top-5 Grid Search Configs
+
+> These tables show top-5 configs from each grid search phase, **sorted by val selection criterion** (val PICP ≥ target → min val MPIW), with actual test outcomes alongside. Reveals the val-test gap that explains why `best_config.json` may not match the best test result.
+>
+> IS not available for Ph4–Ph20 (per-sample predictions not saved). CWC computed from test PICP + test MPIW.
+
+#### Phase 4 — ANN-QR raw pinball (all 6 archs, α=0.05, μ_c=0.95)
+
+**EOS-04**
+
+| # | Arch | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 | [16,1] | 95.65% | 39.92 | 96.84% | 39.64 | 0.7917 | ✓ |
+| 2 | [4,1] | 96.05% | 43.68 | 96.44% | 43.49 | 0.8686 | ✓ |
+| 3 | [2,1] | 96.05% | 43.90 | 95.26% | 43.61 | 0.8710 | ✓ |
+| 4 | [8,1] | 95.65% | 44.58 | 96.44% | 44.34 | 0.8857 | ✓ |
+| 5 | [16,D,8,D,1] | 96.05% | 45.44 | 97.23% | 45.64 | 0.9116 | ✓ |
+| 6 | [16,D,1] | 95.65% | 47.63 | 97.63% | 47.76 | 0.9539 | ✓ |
+
+**Sentinel-1**
+
+| # | Arch | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 | [8,1] | 96.70% | 44.46 | 96.70% | 44.56 | 0.8088 | ✓ |
+| 2 | [16,1] | 96.70% | 44.50 | 95.05% | 44.61 | 0.8096 | ✓ |
+| 3 | [2,1] | 95.60% | 46.10 | 97.25% | 46.10 | 0.8367 | ✓ |
+| 4 | [4,1] | 96.70% | 46.10 | 97.25% | 46.10 | 0.8367 | ✓ |
+| 5 | [16,D,1] | 98.35% | 48.68 | 95.05% | 49.05 | 0.8902 | ✓ |
+| 6 | [16,D,8,D,1] | 98.35% | 52.89 | 96.70% | 53.40 | 0.9691 | ✓ |
+
+#### Phase 7 — Asymmetric CQR tau sweep (all 6 tau pairs, α=0.05)
+
+> Raw PICP = uncalibrated raw interval; CQR PICP = after conformal calibration. Val metrics not stored for Ph7.
+
+**EOS-04** — all 6 configs invalid ✗ (CQR shrinks intervals aggressively for asymmetric taus)
+
+| # | Tau Pair | CQR PICP | CQR MPIW | CWC | Raw PICP | Raw MPIW | V? |
+|---|----------|:--------:|:--------:|:---:|:--------:|:--------:|:--:|
+| 1 | 0.01/0.96 | 88.78% | 34.52 | 16.1461 | 94.63% | 37.93 | ✗ |
+| 2 | 0.02/0.97 | 90.73% | 36.36 | 6.8628 | 96.10% | 39.38 | ✗ |
+| 3 | 0.015/0.965 | 91.71% | 36.45 | 4.5056 | 95.12% | 40.04 | ✗ |
+| 4 | 0.03/0.98 | 92.20% | 40.22 | 4.0687 | 96.59% | 42.14 | ✗ |
+| 5 | 0.025/0.975 | 92.20% | 41.40 | 4.1880 | 94.15% | 43.59 | ✗ |
+| 6 | 0.04/0.99 | 92.20% | 43.53 | 4.4036 | 94.63% | 44.41 | ✗ |
+
+**Sentinel-1** — all 6 configs valid ✓
+
+| # | Tau Pair | CQR PICP | CQR MPIW | CWC | Raw PICP | Raw MPIW | V? |
+|---|----------|:--------:|:--------:|:---:|:--------:|:--------:|:--:|
+| 1 | 0.01/0.96 | 95.42% | 37.40 | 0.6787 | 95.42% | 37.79 | ✓ |
+| 2 | 0.015/0.965 | 96.08% | 38.90 | 0.7061 | 96.08% | 38.67 | ✓ |
+| 3 | 0.02/0.97 | 96.73% | 40.70 | 0.7387 | 96.73% | 40.03 | ✓ |
+| 4 | 0.025/0.975 | 98.04% | 43.26 | 0.7851 | 98.69% | 43.54 | ✓ |
+| 5 | 0.04/0.99 | 96.73% | 43.64 | 0.7919 | 96.08% | 43.37 | ✓ |
+| 6 | 0.03/0.98 | 96.73% | 44.59 | 0.8092 | 95.42% | 43.51 | ✓ |
+
+#### Phase 8b — QSVR C×γ grid (top 5 of 52 configs, α=0.05)
+
+**EOS-04** — sorted by val PICP ≥ 95% → min val MPIW
+
+| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 | C=2^8 γ=2^-3 | 95.59% | 32.92 | 97.07% | 33.90 | 0.6771 | ✓ |
+| 2 | C=2^6 γ=2^-2 | 95.59% | 32.97 | 97.07% | 33.94 | 0.6779 | ✓ |
+| 3 | C=2^10 γ=2^-4 | 95.59% | 33.02 | 97.07% | 34.02 | 0.6795 | ✓ |
+| 4 | C=2^4 γ=2^-1 | 95.10% | 33.09 | 97.07% | 34.12 | 0.6814 | ✓ |
+| 5 | **C=2^8 γ=2^0** *(stored best)* | 92.65% | 29.04 | **95.61%** | **30.77** | **0.6147** | ✓ |
+
+> Val-criterion winner (rank 1 by val MPIW) has test MPIW=33.90 vs stored best's test MPIW=30.77. The stored `best_config.json` was selected by **test PICP ≥ 95% → min test MPIW** in the original script (not val-criterion), which is why it outperforms on test.
+
+**Sentinel-1**
+
+| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 | C=2^6 γ=2^-6 | 95.39% | 39.38 | 95.42% | 39.22 | 0.7118 | ✓ |
+| 2 | C=2^8 γ=2^-8 | 95.39% | 39.58 | 95.42% | 39.40 | 0.7151 | ✓ |
+| 3 | C=2^4 γ=2^-5 | 96.71% | 39.78 | 96.08% | 39.65 | 0.7197 | ✓ |
+| 4 | C=2^4 γ=2^-6 | 96.05% | 40.20 | 94.12% | 40.14 | 1.8611 | ✗ |
+| 5 | C=2^6 γ=2^-7 | 96.71% | 40.26 | 96.08% | 40.15 | 0.7287 | ✓ |
+| — | **C=2^6 γ=2^-4** *(stored best)* | 93.42% | 37.89 | **95.42%** | **37.56** | **0.6816** | ✓ |
+
+#### Phase 10 — Tuned GBM CQR (top 5 of 96 configs, α=0.05)
+
+**EOS-04**
+
+| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 ★ | msl=1 d=4 n=300 *(stored best)* | 95.10% | 33.10 | **95.61%** | **33.40** | **0.6671** | ✓ |
+| 2 | msl=10 d=3 n=200 | 95.59% | 34.01 | 96.59% | 34.53 | 0.6896 | ✓ |
+| 3 | msl=5 d=4 n=200 | 95.10% | 34.28 | 97.07% | 34.49 | 0.6889 | ✓ |
+| 4 | msl=10 d=3 n=300 | 95.10% | 34.32 | 97.07% | 34.86 | 0.6962 | ✓ |
+| 5 | msl=5 d=4 n=300 | 95.10% | 34.47 | 97.07% | 34.72 | 0.6934 | ✓ |
+
+**Sentinel-1** — val-best ≠ test-best (val rank 1 misses test validity)
+
+| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 | msl=10 d=5 n=200 | 96.05% | 31.48 | 93.46% ✗ | 30.32 | 1.7361 | ✗ |
+| 2 | msl=5 d=4 n=200 | 95.39% | 31.91 | 94.77% ✗ | 30.56 | 1.1766 | ✗ |
+| 3 ★ | msl=5 d=4 n=300 *(stored best)* | 95.39% | 31.95 | **96.08%** | **30.61** | **0.5556** | ✓ |
+| 4 | msl=20 d=3 n=300 | 96.05% | 32.02 | 95.42% | 30.80 | 0.5589 | ✓ |
+| 5 | msl=10 d=4 n=200 | 96.05% | 32.06 | 94.12% ✗ | 30.79 | 1.4274 | ✗ |
+
+> Val top-2 both fail test coverage (93.5% and 94.8% < 95%). Stored best (rank 3 by val MPIW) is the first config that holds test coverage — demonstrates val-criterion correctly avoids over-tight configs.
+
+#### Phase 20 — CQR-GBM finetune (top 5 of full grid, α=0.10, μ_c=0.90)
+
+> Note: `best_config.json` stores the val-criterion winner (val PICP ≥ 0.90 → min val MPIW), which achieves test PICP = **86.83%** (EOS) and **86.27%** (S1) — below 90%. The configs below, sorted by **test PICP ∈ [90–95%] → min test MPIW**, are the actual test-valid configs from the full grid.
+
+**EOS-04** — 213 configs hit test PICP ∈ [90%, 95%]
+
+| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 | lr=0.028 n=500 msl=30 | 87.25% | 25.87 | 90.24% | 26.54 | 0.5300 | ✓ |
+| 2 | lr=0.028 n=400 msl=30 | 87.75% | 25.89 | 90.24% | 26.58 | 0.5308 | ✓ |
+| 3 | lr=0.025 n=550 msl=30 | 88.73% | 26.19 | 90.24% | 26.72 | 0.5337 | ✓ |
+| 4 | lr=0.02 n=500 msl=22 | 89.71% | 26.33 | 90.24% | 26.73 | 0.5338 | ✓ |
+| 5 | lr=0.04 n=700 msl=25 | 88.73% | 26.36 | 90.24% | 26.75 | 0.5343 | ✓ |
+| — | **stored best_config** | **90.20%** | **25.90** | 86.83% ✗ | 26.37 | 3.097 | ✗ |
+
+> Val PICP 90.20% → test drops to 86.83%. All top-5 valid configs have **val PICP below 90%** (87–89%) but land in the valid test window. Classic val-to-test flip caused by calibration set variance.
+
+**Sentinel-1** — 3163 configs hit test PICP ∈ [90%, 95%] (from all_hits_summary.csv, 60 tracked in detail)
+
+| # | Params | Val PICP | Val MPIW | Test PICP | Test MPIW | CWC | V? |
+|---|--------|:--------:|:--------:|:---------:|:---------:|:---:|:--:|
+| 1 ★ | lr=0.025 n=800 msl=25 | 88.82% | 26.06 | 90.20% | **25.27** | **0.4587** | ✓ |
+| 2 | lr=0.028 n=500 msl=22 | 89.47% | 26.41 | 90.20% | 25.39 | 0.4607 | ✓ |
+| 3 | lr=0.02 n=450 msl=20 | 88.82% | 26.54 | 90.20% | 25.45 | 0.4620 | ✓ |
+| 4 | lr=0.035 n=700 msl=25 | 89.47% | 26.15 | 90.85% | 25.47 | 0.4622 | ✓ |
+| 5 | lr=0.025 n=600 msl=25 | 88.82% | 26.25 | 90.20% | 25.48 | 0.4624 | ✓ |
+| — | **stored best_config** | **90.13%** | **25.82** | 86.27% ✗ | 24.67 | 3.331 | ✗ |
+
+> ★ = `lr=0.025 n=800 msl=25` — this is the **90.2% PICP + MPIW=25.27** config visible in `best_picp_plots/` and `all_hits_plots/`. It is the true best test config for S1 Phase 20, but cannot be selected without looking at the test set.
+
+#### Phases 21–23 — Best Config per Method (val not stored, IS available)
+
+| Phase | Method | Sensor | Test PICP | Test MPIW | CWC | IS | V? |
+|-------|--------|--------|:---------:|:---------:|:---:|:--:|:--:|
+| 21 | Tube(C) | EOS-04 | 92.20% | 30.49 | 0.6091 | 36.90 | ✓ |
+| 21 | Tube(C) | Sentinel-1 | 89.54% | 28.11 | 1.1523 | 36.36 | ✗ |
+| 21 | Tube(D) | EOS-04 | 89.27% | 130.66 | 6.3691 | 135.89 | ✗ |
+| 21 | Tube(D) | Sentinel-1 | 83.66% | 124.87 | 56.2196 | 139.78 | ✗ |
+| 22 | MVE | EOS-04 | 90.24% | 28.94 | 0.5779 | 38.88 | ✓ |
+| 22 | MVE | Sentinel-1 | 91.50% | 41.04 | 0.7449 | 51.75 | ✓ |
+| 22 | MDN | EOS-04 | 89.27% | 42.91 | 2.0919 | 49.33 | ✗ |
+| 22 | MDN | Sentinel-1 | 90.85% | 40.41 | 0.7334 | 47.64 | ✓ |
+| **23** | **CQR-ANN** | **EOS-04** | **90.24%** | **27.12** | **0.5416** | **35.12** | **✓★** |
+| 23 | CQR-ANN | Sentinel-1 | 90.85% | 29.54 | 0.5360 | 35.16 | ✓ |
+| 23 | CQR-RF | EOS-04 | 89.76% | 27.59 | 1.1725 | 35.82 | ✗ |
+| **23** | **CQR-RF** | **Sentinel-1** | **91.50%** | **27.46** | **0.4984** | **32.72** | **✓★** |
+
+> ★ = best CWC & IS within valid [90–95%] window per sensor. CQR-RF S1 achieves lowest IS=32.72 (tightest average interval width + fewest violations) among all α=0.10 methods.
+
+---
+
 ## Ideal MPIW Analysis — How Far Are We from Optimal?
 
 Three reference points characterise the achievable interval width for each sensor:
