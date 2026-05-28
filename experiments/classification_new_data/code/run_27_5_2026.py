@@ -85,7 +85,7 @@ OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
 RANDOM_SEED  = 42
 ALPHA        = 0.10           # <-- 90% coverage target
 MU_COVERAGE  = 1 - ALPHA      # 0.90
-ETA          = 50.0           # CWC penalty strength
+ETA          = 50.0           # CWC penalty exponent (Khosravi 2011)
 
 X_COLS_EOS = ['HH-pol','HV-pol','cross_pol_ratio','month_sin','month_cos','crop_encoded','NDVI']
 X_COLS_SEN = ['VH-pol','VV-pol','cross_pol_ratio','month_sin','month_cos','crop_encoded','NDVI']
@@ -107,12 +107,19 @@ def picp(y_true, lo, hi):
 def mpiw(lo, hi):
     return float(np.mean(hi - lo))
 
-def cwc(y_true, lo, hi, mu=MU_COVERAGE, eta=ETA):
+def cwc(y_true, lo, hi, mu=MU_COVERAGE, y_range=1.0):
+    """
+    Coverage Width Criterion — Khosravi (2011), same formula as eval_comparison.
+      PINAW = MPIW / R          (R = test-set y range, normalises to [0,1] scale)
+      gamma = 0  if PICP >= mu  (no penalty)
+              1  otherwise      (binary penalty flag)
+      CWC   = PINAW * (1 + gamma * exp(-50 * (PICP - mu)))
+    Lower is better; comparable across sensors/datasets.
+    """
     cov   = picp(y_true, lo, hi)
-    width = mpiw(lo, hi)
-    if cov >= mu:
-        return float(width)
-    return float(width * (1 + np.exp(eta * (mu - cov)) * (mu - cov) ** 2))
+    pinaw = mpiw(lo, hi) / max(float(y_range), 1e-9)
+    gamma = 0.0 if cov >= mu else 1.0
+    return float(pinaw * (1.0 + gamma * np.exp(-ETA * (cov - mu))))
 
 def interval_score(y_true, lo, hi, alpha=ALPHA):
     """
@@ -125,14 +132,14 @@ def interval_score(y_true, lo, hi, alpha=ALPHA):
     over  = np.maximum(y_true - hi, 0.0)
     return float(np.mean(width + (2.0 / alpha) * (under + over)))
 
-def all_metrics(y_true, lo, hi, label='', alpha=ALPHA):
+def all_metrics(y_true, lo, hi, label='', alpha=ALPHA, y_range=1.0):
     p  = picp(y_true, lo, hi)
     m  = mpiw(lo, hi)
-    c  = cwc(y_true, lo, hi, mu=1-alpha)
+    c  = cwc(y_true, lo, hi, mu=1-alpha, y_range=y_range)
     s  = interval_score(y_true, lo, hi, alpha=alpha)
     status = 'OK' if p >= (1 - alpha) else 'LOW'
     print(f'  [{label:14s}] PICP={p*100:5.2f}% [{status}]  MPIW={m:7.3f}  '
-          f'CWC={c:8.3f}  IS={s:8.3f}')
+          f'CWC={c:8.6f}  IS={s:8.3f}')
     return {'PICP': round(p,6), 'MPIW': round(m,6),
             'CWC': round(c,6),  'IS':   round(s,6)}
 
@@ -373,7 +380,7 @@ def run_cqr_tube(X_tr_s, X_v_s, X_cal_s, X_te_s,
 # PLOTTING  -  publication-quality
 # =========================================================================
 
-def plot_pi_series(y_true, lo, hi, model_name, satellite, out_path, alpha=ALPHA):
+def plot_pi_series(y_true, lo, hi, model_name, satellite, out_path, alpha=ALPHA, y_range=1.0):
     """Full-width prediction interval series plot, sorted by actual value."""
     colour = PALETTE.get(model_name, '#607D8B')
     target = 1 - alpha
@@ -386,7 +393,7 @@ def plot_pi_series(y_true, lo, hi, model_name, satellite, out_path, alpha=ALPHA)
 
     p  = picp(y_true, lo, hi)
     m  = mpiw(lo, hi)
-    c  = cwc(y_true, lo, hi, mu=target)
+    c  = cwc(y_true, lo, hi, mu=target, y_range=y_range)
     s  = interval_score(y_true, lo, hi, alpha=alpha)
 
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -599,8 +606,11 @@ for satellite, X_raw, y_raw in datasets:
     X_tr, X_v, X_cal, X_te, y_tr, y_v, y_cal, y_te = split_70_10_10_10(X, y)
     X_tr_s, X_v_s, X_cal_s, X_te_s, _ = scale_splits(X_tr, X_v, X_cal, X_te)
 
+    # y_range of test set — used for PINAW normalisation in CWC (Khosravi 2011)
+    y_range = float(y_te.max() - y_te.min())
+
     print(f'  Split: train={len(y_tr)} | val={len(y_v)} | '
-          f'cal={len(y_cal)} | test={len(y_te)}')
+          f'cal={len(y_cal)} | test={len(y_te)}  y_range={y_range:.3f}')
     print(f'  {"-"*62}')
 
     sat_dir  = OUTPUT_PATH / satellite.replace('-', '_')
@@ -611,7 +621,7 @@ for satellite, X_raw, y_raw in datasets:
         try:
             lo, hi = runner(X_tr_s, X_v_s, X_cal_s, X_te_s,
                             y_tr,   y_v,   y_cal,   y_te)
-            m = all_metrics(y_te, lo, hi, label=model_name)
+            m = all_metrics(y_te, lo, hi, label=model_name, y_range=y_range)
             sat_results[model_name] = m
 
             plot_pi_series(
@@ -619,6 +629,7 @@ for satellite, X_raw, y_raw in datasets:
                 model_name=model_name,
                 satellite=satellite,
                 out_path=plot_dir / f'{model_name}_pi_series.png',
+                y_range=y_range,
             )
         except Exception as e:
             import traceback

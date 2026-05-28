@@ -95,6 +95,18 @@ METHODS = [
      '#d62728', True),
 ]
 
+# ── New 27-May models: loaded from flat per-sensor JSON ───────────────────────
+# Format: {"QR-NN": {PICP, MPIW, CWC, IS}, "CQR_tube": {...}}
+METHODS_27MAY = [
+    # (label_in_json,  display_label,  color)
+    ('QR-NN',    'QR-NN',     '#E91E63'),   # pink
+    ('CQR_tube', 'CQR-Tube',  '#00897B'),   # teal
+]
+JSON_27MAY = {
+    'EOS-04':     OUTPUT_ROOT / '27_5_2026_output' / 'EOS_04'     / 'EOS-04_results.json',
+    'Sentinel-1': OUTPUT_ROOT / '27_5_2026_output' / 'Sentinel_1' / 'Sentinel-1_results.json',
+}
+
 
 def split_70_10_10_10(X, y):
     X_tr, X_tmp, y_tr, y_tmp = train_test_split(X, y, train_size=0.7, random_state=RANDOM_SEED)
@@ -138,7 +150,7 @@ def in_range(picp):
     return PICP_LO <= picp <= PICP_HI
 
 
-# ── Load all results ──────────────────────────────────────────────────────────
+# ── Load phase 16-23 results ──────────────────────────────────────────────────
 print("Loading results...")
 y_ranges = {k: get_y_range(k) for k in SENSORS_META}
 
@@ -147,14 +159,38 @@ for label, eos_jf, s1_jf, color, has_IS in METHODS:
     for sensor, jf in [('EOS-04', eos_jf), ('Sentinel-1', s1_jf)]:
         r = load_result(jf, y_ranges[sensor], has_IS)
         data[sensor][label] = r
-        valid_tag = '✓ in-range' if (r and in_range(r['PICP'])) else '✗ out-range'
+        valid_tag = 'OK' if (r and in_range(r['PICP'])) else 'LOW'
         status = (f"PICP={r['PICP']:.4f} MPIW={r['MPIW']:.2f} "
                   f"CWC={r['CWC']:.4f} IS={r['IS']}  [{valid_tag}]"
                   if r else "not found")
         print(f"  {sensor:12s} {label:10s}: {status}")
 
-method_labels = [m[0] for m in METHODS]
+# ── Load 27-May models (QR-NN, CQR-Tube) from flat JSON ──────────────────────
+print("\nLoading 27-May-2026 models (QR-NN, CQR-Tube)...")
+for sensor, jf in JSON_27MAY.items():
+    if not Path(jf).exists():
+        print(f"  WARNING: {jf} not found — skipping")
+        continue
+    raw = json.load(open(jf))
+    for json_key, display_label, _ in METHODS_27MAY:
+        m = raw.get(json_key)
+        if m is None:
+            print(f"  WARNING: key '{json_key}' missing in {jf}")
+            continue
+        data[sensor][display_label] = {
+            'PICP': m['PICP'],
+            'MPIW': m['MPIW'],
+            'CWC':  m['CWC'],    # already PINAW-normalised
+            'IS':   m.get('IS'),
+        }
+        valid_tag = 'OK' if in_range(m['PICP']) else 'LOW'
+        print(f"  {sensor:12s} {display_label:10s}: "
+              f"PICP={m['PICP']:.4f} MPIW={m['MPIW']:.2f} "
+              f"CWC={m['CWC']:.4f} IS={m.get('IS')}  [{valid_tag}]")
+
+method_labels = [m[0] for m in METHODS] + [m[1] for m in METHODS_27MAY]
 method_colors = {m[0]: m[3] for m in METHODS}
+method_colors.update({m[1]: m[2] for m in METHODS_27MAY})
 
 
 def _find_best_in_range(sensor, metric, lower_is_better=True):
@@ -549,7 +585,7 @@ def summary_table():
     print(f"  Saved summary_table.png + summary_table.csv")
 
     # Print console summary
-    print("\n  ── Best in 90-95% PICP range ──")
+    print("\n  -- Best in 90-95% PICP range --")
     for sensor in SENSORS_META:
         valid_m = {m: data[sensor][m] for m in method_labels
                    if data[sensor].get(m) and in_range(data[sensor][m]['PICP'])}
@@ -561,18 +597,18 @@ def summary_table():
                         key=lambda m: valid_m[m]['IS'], default='N/A')
         best_mpiw = min(valid_m, key=lambda m: valid_m[m]['MPIW'])
         print(f"  {sensor}:")
-        print(f"    Best CWC  → {best_cwc:10s}  CWC={valid_m[best_cwc]['CWC']:.4f}"
+        print(f"    Best CWC  -> {best_cwc:10s}  CWC={valid_m[best_cwc]['CWC']:.4f}"
               f"  PICP={valid_m[best_cwc]['PICP']*100:.1f}%"
               f"  MPIW={valid_m[best_cwc]['MPIW']:.2f}")
         if best_is != 'N/A':
-            print(f"    Best IS   → {best_is:10s}  IS={valid_m[best_is]['IS']:.2f}"
+            print(f"    Best IS   -> {best_is:10s}  IS={valid_m[best_is]['IS']:.2f}"
                   f"   PICP={valid_m[best_is]['PICP']*100:.1f}%"
                   f"  MPIW={valid_m[best_is]['MPIW']:.2f}")
-        print(f"    Best MPIW → {best_mpiw:10s}  MPIW={valid_m[best_mpiw]['MPIW']:.2f}"
+        print(f"    Best MPIW -> {best_mpiw:10s}  MPIW={valid_m[best_mpiw]['MPIW']:.2f}"
               f"  PICP={valid_m[best_mpiw]['PICP']*100:.1f}%")
 
 
-# ── Run all plots ─────────────────────────────────────────────────────────────
+# -- Run all plots ------------------------------------------------------------───
 print("\nGenerating comparison plots...")
 bar_chart('CWC',  'CWC — Coverage Width Criterion (Khosravi 2011, lower=better)',
           'cwc_comparison.png', True)
@@ -585,5 +621,5 @@ valid_range_chart()
 scatter_picp_mpiw()
 summary_table()
 
-print(f"\n  All comparison plots → {OUT_DIR}")
+print(f"\n  All comparison plots -> {OUT_DIR}")
 print("Done.")

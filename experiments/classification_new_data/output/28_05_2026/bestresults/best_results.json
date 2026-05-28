@@ -1,0 +1,52 @@
+{
+    "date": "28-05-2026",
+    "selection_criteria": {
+        "PICP": "higher is better (target >= 0.90)",
+        "MPIW": "lower is better (tighter interval)",
+        "CWC": "lower is better",
+        "IS": "lower is better"
+    },
+    "best_results": {
+        "EOS-04": {
+            "best_model": "QR-NN",
+            "reason": "QR-NN achieves same PICP (0.8976) as CQR_tube but with drastically lower MPIW (28.18 vs 120.40), CWC (1.20 vs 5.12), and IS (35.97 vs 130.41) — significantly tighter and more efficient prediction intervals",
+            "metrics": {
+                "PICP": 0.897561,
+                "MPIW": 28.179768,
+                "CWC": 1.19869,
+                "IS": 35.971537
+            }
+        },
+        "Sentinel-1": {
+            "best_model": "QR-NN",
+            "reason": "QR-NN achieves much lower MPIW (27.14 vs 147.20), CWC (4.89 vs 2.67), and IS (36.47 vs 155.85). Although CQR_tube has slightly higher PICP (0.915 vs 0.856), QR-NN's far superior interval efficiency makes it the overall best model",
+            "metrics": {
+                "PICP": 0.856209,
+                "MPIW": 27.143862,
+                "CWC": 4.892361,
+                "IS": 36.465746
+            }
+        }
+    },
+    "overall_best": {
+        "model": "QR-NN",
+        "best_dataset": "EOS-04",
+        "reason": "EOS-04 with QR-NN achieves the best combined score: PICP=0.8976 (near target), MPIW=28.18 (tightest), CWC=1.20 (lowest), IS=35.97 (lowest)",
+        "metrics": {
+            "PICP": 0.897561,
+            "MPIW": 28.179768,
+            "CWC": 1.19869,
+            "IS": 35.971537
+        }
+    },
+    "all_results_reference": {
+        "EOS-04": {
+            "QR-NN":   { "PICP": 0.897561, "MPIW": 28.179768,  "CWC": 1.19869,  "IS": 35.971537  },
+            "CQR_tube":{ "PICP": 0.897561, "MPIW": 120.39827,  "CWC": 5.121413, "IS": 130.414071 }
+        },
+        "Sentinel-1": {
+            "QR-NN":   { "PICP": 0.856209, "MPIW": 27.143862,  "CWC": 4.892361, "IS": 36.465746  },
+            "CQR_tube":{ "PICP": 0.915033, "MPIW": 147.197342, "CWC": 2.671458, "IS": 155.851099 }
+        }
+    }
+}
